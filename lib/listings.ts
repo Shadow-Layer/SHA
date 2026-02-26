@@ -1,3 +1,5 @@
+import mongoose from "mongoose";
+
 import { connectDB } from "@/lib/db";
 import Listing from "@/lib/models/Listing";
 
@@ -36,6 +38,42 @@ export type ListingsResult = {
     total: number;
     totalPages: number;
   };
+};
+
+export type ListingOccupancyOption = {
+  type: string;
+  rentAmount: number | null;
+  description: string | null;
+};
+
+export type ListingRegulations = {
+  curfew?: boolean;
+  visitorsAllowed?: boolean;
+  noSmoking?: boolean;
+  noParties?: boolean;
+  quietHours?: boolean;
+  separateLease?: boolean;
+  noPets?: boolean;
+  tenantsCleaning?: boolean;
+  curfewTime?: string;
+  otherRegulations?: string;
+};
+
+export type ListingDetail = {
+  id: string;
+  title: string;
+  area: string;
+  landmark: string | null;
+  occupancyOptions: ListingOccupancyOption[];
+  amenities: string[];
+  regulations: ListingRegulations;
+  tenantPreferences: string[];
+  photos: string[];
+  status: "published" | "warning";
+  verificationLevel: "landlord_confirmed" | "student_verified";
+  confirmationCount: number;
+  suspiciousCount: number;
+  updatedAt: string;
 };
 
 const DEFAULT_LIMIT = 20;
@@ -217,5 +255,60 @@ export async function getPublishedListings(
       total,
       totalPages,
     },
+  };
+}
+
+export async function getListingById(listingId: string): Promise<ListingDetail | null> {
+  if (!mongoose.isValidObjectId(listingId)) {
+    return null;
+  }
+
+  await connectDB();
+
+  const doc = await Listing.findOne({
+    _id: listingId,
+    status: { $in: ["published", "warning"] },
+  })
+    .lean()
+    .exec();
+
+  if (!doc) {
+    return null;
+  }
+
+  const occupancyOptions = Array.isArray(doc.occupancyOptions)
+    ? (doc.occupancyOptions as Array<Record<string, unknown>>)
+    : [];
+  const amenities = Array.isArray(doc.amenities) ? (doc.amenities as string[]) : [];
+  const tenantPreferences = Array.isArray(doc.tenantPreferences)
+    ? (doc.tenantPreferences as string[])
+    : [];
+  const photos = Array.isArray(doc.photos) ? (doc.photos as string[]) : [];
+  const regulations =
+    doc.regulations && typeof doc.regulations === "object"
+      ? (doc.regulations as ListingRegulations)
+      : {};
+
+  return {
+    id: String(doc._id),
+    title: typeof doc.title === "string" ? doc.title : "Untitled listing",
+    area: typeof doc.area === "string" ? doc.area : "Unknown area",
+    landmark: typeof doc.landmark === "string" ? doc.landmark : null,
+    occupancyOptions: occupancyOptions.map((option) => ({
+      type: typeof option.type === "string" ? option.type : "custom",
+      rentAmount: typeof option.rentAmount === "number" ? option.rentAmount : null,
+      description: typeof option.description === "string" ? option.description : null,
+    })),
+    amenities,
+    regulations,
+    tenantPreferences,
+    photos,
+    status: doc.status === "warning" ? "warning" : "published",
+    verificationLevel:
+      doc.verificationLevel === "student_verified" ? "student_verified" : "landlord_confirmed",
+    confirmationCount: typeof doc.confirmationCount === "number" ? doc.confirmationCount : 0,
+    suspiciousCount: typeof doc.suspiciousCount === "number" ? doc.suspiciousCount : 0,
+    updatedAt:
+      doc.updatedAt instanceof Date ? doc.updatedAt.toISOString() : new Date().toISOString(),
   };
 }

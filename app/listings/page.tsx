@@ -86,28 +86,32 @@ export default async function ListingsPage({ searchParams }: ListingsPageProps) 
                 key={listing.id}
                 className="overflow-hidden rounded-xl border bg-card shadow-sm"
               >
-                <div className="relative h-48 w-full bg-muted">
-                  {listing.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={listing.photoUrl}
-                      alt={listing.title}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                      No photo available
-                    </div>
-                  )}
-                  <span className="absolute left-3 top-3 rounded-full bg-background px-2 py-1 text-xs font-medium shadow-sm">
-                    {listing.verificationLevel === "student_verified"
-                      ? "Student Verified"
-                      : "Landlord Confirmed"}
-                  </span>
-                </div>
+                <Link href={`/listings/${listing.id}`} className="block">
+                  <div className="relative h-48 w-full bg-muted">
+                    {listing.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={listing.photoUrl}
+                        alt={listing.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                        No photo available
+                      </div>
+                    )}
+                    <span className="absolute left-3 top-3 rounded-full bg-background px-2 py-1 text-xs font-medium shadow-sm">
+                      {listing.verificationLevel === "student_verified"
+                        ? "Student Verified"
+                        : "Landlord Confirmed"}
+                    </span>
+                  </div>
+                </Link>
 
                 <div className="space-y-2 p-4">
-                  <h2 className="text-lg font-semibold">{listing.title}</h2>
+                  <h2 className="text-lg font-semibold">
+                    <Link href={`/listings/${listing.id}`}>{listing.title}</Link>
+                  </h2>
                   <p className="text-sm text-muted-foreground">{listing.area}</p>
                   <p className="text-sm">
                     {listing.minRent !== null ? (
