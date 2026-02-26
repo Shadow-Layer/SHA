@@ -1,39 +1,60 @@
-"use client";
-
 import Link from "next/link";
-import { Menu } from "lucide-react";
-import { useState } from "react";
 
+import LogoutButton from "@/components/auth/LogoutButton";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { getAuthSession } from "@/lib/auth";
 
-const navLinks = [
-  { label: "Find Housing", href: "#" },
-  { label: "Forum", href: "#" },
-  { label: "Dashboard", href: "#" },
-];
+type NavItem = {
+  label: string;
+  href: string;
+};
 
-export default function Navbar() {
-  const [open, setOpen] = useState(false);
+function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
+  if (role === "student") {
+    return [
+      { label: "Find Housing", href: "/" },
+      { label: "Forum", href: "/forum" },
+      { label: "Inbox", href: "/inbox" },
+      { label: "Dashboard", href: "/dashboard/student" },
+    ];
+  }
+
+  if (role === "landlord") {
+    return [
+      { label: "Find Housing", href: "/" },
+      { label: "Inbox", href: "/inbox" },
+      { label: "Dashboard", href: "/dashboard/landlord" },
+    ];
+  }
+
+  if (role === "admin") {
+    return [
+      { label: "Dashboard", href: "/dashboard" },
+      { label: "Admin", href: "/admin" },
+    ];
+  }
+
+  return [{ label: "Find Housing", href: "/" }];
+}
+
+export default async function Navbar() {
+  const session = await getAuthSession();
+  const role = session?.user?.role;
+  const navLinks = getRoleNav(role);
+  const isAuthenticated = Boolean(session?.user);
 
   return (
     <nav className="border-b bg-background">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="#" className="text-lg font-bold tracking-tight">
+        <Link href="/" className="text-lg font-bold tracking-tight">
           <span>SHA</span>
         </Link>
 
-        <div className="hidden items-center gap-8 md:flex">
-          <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 sm:gap-6">
+          <div className="flex max-w-[45vw] items-center gap-4 overflow-x-auto whitespace-nowrap">
             {navLinks.map((link) => (
               <Link
-                key={link.label}
+                key={`${role ?? "guest"}-${link.href}`}
                 href={link.href}
                 className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
@@ -41,51 +62,18 @@ export default function Navbar() {
               </Link>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" asChild>
-              <Link href="#">Sign In</Link>
-            </Button>
-            <Button asChild>
-              <Link href="#">Register</Link>
-            </Button>
-          </div>
-        </div>
-
-        <div className="md:hidden">
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Open menu">
-                <Menu className="h-5 w-5" />
+          {isAuthenticated ? (
+            <LogoutButton callbackUrl="/auth/login" />
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" asChild>
+                <Link href="/auth/login">Sign In</Link>
               </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[280px]">
-              <SheetHeader>
-                <SheetTitle>Menu</SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 flex flex-col gap-3">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.label}
-                    href={link.href}
-                    className="rounded-md px-2 py-1 text-sm font-medium hover:bg-muted"
-                    onClick={() => setOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-                <Button variant="ghost" className="justify-start" asChild>
-                  <Link href="#" onClick={() => setOpen(false)}>
-                    Sign In
-                  </Link>
-                </Button>
-                <Button className="justify-start" asChild>
-                  <Link href="#" onClick={() => setOpen(false)}>
-                    Register
-                  </Link>
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
+              <Button asChild>
+                <Link href="/auth/register">Register</Link>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </nav>
