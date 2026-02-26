@@ -98,6 +98,7 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
   const userRole = session?.user?.role;
 
   let applicationStatus: "pending" | "accepted" | "rejected" | "withdrawn" | null = null;
+  let applicationId: string | undefined;
   let verificationType: "stayed" | "seen" | "suspicious" | null = null;
 
   if (userId && userRole === "student") {
@@ -107,8 +108,11 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
       VerificationEvent.findOne({ listingId: listing.id, studentId: userId }).lean().exec(),
     ]);
 
-    if (application?.status) {
-      applicationStatus = application.status;
+    if (application) {
+      if (application.status) {
+        applicationStatus = application.status;
+      }
+      applicationId = String(application._id);
     }
     if (verification?.type) {
       verificationType = verification.type;
@@ -305,13 +309,17 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
         </div>
 
         <div className="space-y-6">
-          <ApplyPanel
+            <ApplyPanel
             listingId={listing.id}
             isAuthenticated={isAuthenticated}
             loginHref={loginHref}
             occupancyOptions={listing.occupancyOptions}
             applicationStatus={applicationStatus}
+            applicationId={applicationId}
           />
+          <p className="text-sm text-muted-foreground">
+            {listing.confirmationCount} student{listing.confirmationCount !== 1 ? 's' : ''} confirmed · {listing.suspiciousCount} flagged
+          </p>
           <VerifyPanel
             listingId={listing.id}
             isAuthenticated={isAuthenticated}

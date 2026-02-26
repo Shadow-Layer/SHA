@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -24,9 +25,12 @@ export default function VerifyPanel({
   loginHref,
   existingVerification = null,
 }: VerifyPanelProps) {
+  const router = useRouter();
   const [selected, setSelected] = useState<"stayed" | "seen" | "suspicious" | "">("");
   const [note, setNote] = useState("");
-  const [notice, setNotice] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isAuthenticated) {
     return (
@@ -57,6 +61,14 @@ export default function VerifyPanel({
     );
   }
 
+  if (done) {
+    return (
+      <section className="rounded-xl border bg-card p-6 shadow-sm">
+        <p>Thanks for your feedback.</p>
+      </section>
+    );
+  }
+
   return (
     <section className="rounded-xl border bg-card p-6 shadow-sm">
       <h2 className="text-lg font-semibold">Verify this listing</h2>
@@ -66,9 +78,31 @@ export default function VerifyPanel({
 
       <form
         className="mt-5 space-y-4"
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
-          setNotice("Verification submissions will be enabled once T7 is complete.");
+          if (!selected) return;
+          setSubmitting(true);
+          setError(null);
+          try {
+            const res = await fetch(`/api/listings/${listingId}/verify`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ type: selected, note: note || undefined }),
+            });
+            const data = await res.json();
+            if (res.status === 409) {
+              setError("You've already verified this listing.");
+            } else if (!res.ok) {
+              throw new Error(data.error || "Unable to submit verification");
+            } else {
+              setDone(true);
+              router.refresh();
+            }
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Unable to submit verification");
+          } finally {
+            setSubmitting(false);
+          }
         }}
       >
         <div className="flex flex-col gap-3">
@@ -103,10 +137,10 @@ export default function VerifyPanel({
           </label>
         ) : null}
 
-        <Button type="submit" variant="outline" disabled={!selected}>
+        <Button type="submit" variant="outline" disabled={submitting || done || !selected}>
           Submit verification
         </Button>
-        {notice ? <p className="text-xs text-muted-foreground">{notice}</p> : null}
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
       </form>
     </section>
   );

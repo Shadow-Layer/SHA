@@ -35,16 +35,16 @@ type WizardState = {
   photos: string[];
 };
 
-const AMENITIES = [
-  "WiFi",
-  "Borehole",
-  "Prepaid ZESA",
-  "Backup Power",
-  "Kitchen",
-  "Laundry",
-  "Ensuite",
-  "Burglar Bars",
-  "Parking",
+const AMENITIES: { id: string; label: string }[] = [
+  { id: 'wifi', label: 'WiFi' },
+  { id: 'borehole', label: 'Borehole' },
+  { id: 'prepaid_zesa', label: 'Prepaid ZESA' },
+  { id: 'backup_power', label: 'Backup Power' },
+  { id: 'kitchen', label: 'Kitchen' },
+  { id: 'laundry', label: 'Laundry' },
+  { id: 'ensuite', label: 'Ensuite' },
+  { id: 'burglar_bars', label: 'Burglar Bars' },
+  { id: 'parking', label: 'Parking' },
 ];
 
 const TENANT_PREFERENCES = [
@@ -345,20 +345,20 @@ export default function ListingWizard({ userId }: ListingWizardProps) {
             <h3 className="text-sm font-semibold">Amenities</h3>
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {AMENITIES.map((item) => (
-                <label key={item} className="text-sm">
+                <label key={item.id} className="text-sm">
                   <input
                     type="checkbox"
-                    checked={state.amenities.includes(item)}
+                    checked={state.amenities.includes(item.id)}
                     onChange={(event) =>
                       setState((prev) => ({
                         ...prev,
                         amenities: event.target.checked
-                          ? [...prev.amenities, item]
-                          : prev.amenities.filter((value) => value !== item),
+                          ? [...prev.amenities, item.id]
+                          : prev.amenities.filter((value) => value !== item.id),
                       }))
                     }
                   />{" "}
-                  {item}
+                  {item.label}
                 </label>
               ))}
             </div>
@@ -465,7 +465,7 @@ export default function ListingWizard({ userId }: ListingWizardProps) {
             <p className="mt-2">Title: {state.title || "-"}</p>
             <p>Area: {state.area || "-"}</p>
             <p>Landmark: {state.landmark || "-"}</p>
-            <p>Amenities: {state.amenities.join(", ") || "-"}</p>
+            <p>Amenities: {state.amenities.map(id => AMENITIES.find(a => a.id === id)?.label ?? id).join(", ") || "-"}</p>
             <p>Photos: {state.photos.length}</p>
           </div>
           {submitError ? <p className="text-sm text-red-600">{submitError}</p> : null}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ type ApplyPanelProps = {
   loginHref: string;
   occupancyOptions: ListingOccupancyOption[];
   applicationStatus?: "pending" | "accepted" | "rejected" | "withdrawn" | null;
+  applicationId?: string;
 };
 
 export default function ApplyPanel({
@@ -28,8 +30,12 @@ export default function ApplyPanel({
   loginHref,
   occupancyOptions,
   applicationStatus = null,
+  applicationId,
 }: ApplyPanelProps) {
-  const [notice, setNotice] = useState<string | null>(null);
+  const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isAuthenticated) {
     return (
@@ -57,12 +63,29 @@ export default function ApplyPanel({
           <Button
             variant="outline"
             className="mt-4"
-            onClick={() => setNotice("Withdrawals will be available once the apply API is live.")}
+            onClick={async () => {
+              if (!applicationId) return;
+              try {
+                const res = await fetch(`/api/applications/${applicationId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action: "withdraw" }),
+                });
+                if (!res.ok) {
+                  const data = await res.json();
+                  setError(data.error || "Unable to withdraw");
+                } else {
+                  router.refresh();
+                }
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Unable to withdraw");
+              }
+            }}
           >
             Withdraw application
           </Button>
         ) : null}
-        {notice ? <p className="mt-3 text-xs text-muted-foreground">{notice}</p> : null}
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
       </section>
     );
   }
@@ -70,6 +93,14 @@ export default function ApplyPanel({
   const sortedOptions = occupancyOptions.length
     ? occupancyOptions
     : [{ type: "custom", rentAmount: null, description: null }];
+
+  if (submitted) {
+    return (
+      <section className="rounded-xl border bg-card p-6 shadow-sm">
+        <p>Application sent. You'll be notified when the landlord responds.</p>
+      </section>
+    );
+  }
 
   return (
     <section className="rounded-xl border bg-card p-6 shadow-sm">
@@ -80,9 +111,35 @@ export default function ApplyPanel({
 
       <form
         className="mt-5 space-y-4"
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
-          setNotice("Application submissions will be enabled once T6 is complete.");
+          setSubmitting(true);
+          setError(null);
+          const formData = new FormData(event.currentTarget as HTMLFormElement);
+          const moveInDate = formData.get("moveInDate") as string;
+          const occupancyPreference = formData.get("occupancyPreference") as string;
+          const message = formData.get("message") as string;
+          try {
+            const res = await fetch(`/api/listings/${listingId}/apply`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                moveInDate: moveInDate || undefined,
+                occupancyPreference: occupancyPreference || undefined,
+                message: message || undefined,
+              }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              throw new Error(data.error || "Unable to submit application");
+            }
+            setSubmitted(true);
+            router.refresh();
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Unable to submit application");
+          } finally {
+            setSubmitting(false);
+          }
         }}
       >
         <label className="block text-sm font-medium">
@@ -125,8 +182,10 @@ export default function ApplyPanel({
           />
         </label>
 
-        <Button type="submit">Submit application</Button>
-        {notice ? <p className="text-xs text-muted-foreground">{notice}</p> : null}
+        <Button type="submit" disabled={submitting}>
+          {submitting ? "Submitting..." : "Submit application"}
+        </Button>
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
       </form>
     </section>
   );
