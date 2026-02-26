@@ -12,7 +12,7 @@ type NavItem = {
 function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
   if (role === "student") {
     return [
-      { label: "Find Housing", href: "/" },
+      { label: "Listings", href: "/listings" },
       { label: "Forum", href: "/forum" },
       { label: "Inbox", href: "/inbox" },
       { label: "Dashboard", href: "/dashboard/student" },
@@ -21,7 +21,7 @@ function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
 
   if (role === "landlord") {
     return [
-      { label: "Find Housing", href: "/" },
+      { label: "Listings", href: "/listings" },
       { label: "Inbox", href: "/inbox" },
       { label: "Dashboard", href: "/dashboard/landlord" },
     ];
@@ -34,7 +34,7 @@ function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
     ];
   }
 
-  return [{ label: "Find Housing", href: "/" }];
+  return [{ label: "Listings", href: "/listings" }];
 }
 
 export default async function Navbar() {
@@ -67,10 +67,10 @@ export default async function Navbar() {
           ) : (
             <div className="flex items-center gap-2">
               <Button variant="ghost" asChild>
-                <Link href="/auth/login">Sign In</Link>
+                <Link href="/auth/login">Login</Link>
               </Button>
               <Button asChild>
-                <Link href="/auth/register">Register</Link>
+                <Link href="/auth/register">Sign Up</Link>
               </Button>
             </div>
           )}

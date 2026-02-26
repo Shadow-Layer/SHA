@@ -3,11 +3,16 @@ import RegisterForm from "@/components/auth/RegisterForm";
 type RegisterPageProps = {
   searchParams: {
     callbackUrl?: string;
+    role?: string;
   };
 };
 
 export default function RegisterPage({ searchParams }: RegisterPageProps) {
   const callbackUrl = searchParams.callbackUrl ?? "/dashboard";
+  const role =
+    searchParams.role === "student" || searchParams.role === "landlord"
+      ? searchParams.role
+      : undefined;
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
@@ -18,7 +23,7 @@ export default function RegisterPage({ searchParams }: RegisterPageProps) {
         </p>
 
         <div className="mt-6">
-          <RegisterForm callbackUrl={callbackUrl} />
+          <RegisterForm callbackUrl={callbackUrl} initialRole={role} />
         </div>
       </section>
     </main>

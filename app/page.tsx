@@ -4,21 +4,34 @@ import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
-      <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-        Student Housing Archive
-      </h1>
-      <p className="text-muted-foreground">
-        Coming soon — we&apos;re building something for Mutare students.
-      </p>
-      <div className="flex items-center gap-3">
-        <Button asChild>
-          <Link href="#">Find Housing</Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link href="#">List Your Property</Link>
-        </Button>
-      </div>
+    <main className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
+      <section className="rounded-2xl border bg-card px-6 py-14 shadow-sm sm:px-10">
+        <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Student Housing Archive
+        </p>
+        <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
+          Transparent student housing, backed by real community signals.
+        </h1>
+        <p className="mt-4 max-w-2xl text-base text-muted-foreground sm:text-lg">
+          SHA helps students discover safer, verified rentals without relying on hidden fees or
+          word-of-mouth guesswork.
+        </p>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <Button size="lg" asChild>
+            <Link href="/listings">Find Housing</Link>
+          </Button>
+          <Button size="lg" variant="outline" asChild>
+            <Link href="/auth/register?role=landlord">List Your Property</Link>
+          </Button>
+        </div>
+      </section>
+
+      <section className="mt-6 grid grid-cols-1 gap-3 rounded-xl border bg-card p-5 text-sm font-medium sm:grid-cols-2 lg:grid-cols-4">
+        <p>No Agent Fees</p>
+        <p>Verified Listings</p>
+        <p>Real Reviews</p>
+        <p>Inbox Messaging</p>
+      </section>
     </main>
   );
 }

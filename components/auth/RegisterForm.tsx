@@ -22,12 +22,15 @@ const roles = [
 
 type RegisterFormProps = {
   callbackUrl: string;
+  initialRole?: (typeof roles)[number]["value"];
 };
 
-export default function RegisterForm({ callbackUrl }: RegisterFormProps) {
+export default function RegisterForm({ callbackUrl, initialRole }: RegisterFormProps) {
   const router = useRouter();
 
-  const [role, setRole] = useState<(typeof roles)[number]["value"]>("student");
+  const [role, setRole] = useState<(typeof roles)[number]["value"]>(
+    initialRole ?? "student",
+  );
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
