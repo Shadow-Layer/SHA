@@ -30,9 +30,6 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
-  if (pathname.startsWith("/forum") && token.role !== "student") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  }
 
   return NextResponse.next();
 }

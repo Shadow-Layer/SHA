@@ -69,7 +69,7 @@ export type ListingDetail = {
   regulations: ListingRegulations;
   tenantPreferences: string[];
   photos: string[];
-  status: "published" | "warning";
+  status: "pending_review" | "published" | "warning" | "removed";
   verificationLevel: "landlord_confirmed" | "student_verified";
   confirmationCount: number;
   suspiciousCount: number;
@@ -258,17 +258,24 @@ export async function getPublishedListings(
   };
 }
 
-export async function getListingById(listingId: string): Promise<ListingDetail | null> {
+export async function getListingById(
+  listingId: string,
+  options: { includeUnpublished?: boolean } = {},
+): Promise<ListingDetail | null> {
   if (!mongoose.isValidObjectId(listingId)) {
     return null;
   }
 
   await connectDB();
 
-  const doc = await Listing.findOne({
-    _id: listingId,
-    status: { $in: ["published", "warning"] },
-  })
+  const doc = await Listing.findOne(
+    options.includeUnpublished
+      ? { _id: listingId }
+      : {
+          _id: listingId,
+          status: { $in: ["published", "warning"] },
+        },
+  )
     .lean()
     .exec();
 
@@ -303,7 +310,10 @@ export async function getListingById(listingId: string): Promise<ListingDetail |
     regulations,
     tenantPreferences,
     photos,
-    status: doc.status === "warning" ? "warning" : "published",
+    status:
+      doc.status === "warning" || doc.status === "pending_review" || doc.status === "removed"
+        ? doc.status
+        : "published",
     verificationLevel:
       doc.verificationLevel === "student_verified" ? "student_verified" : "landlord_confirmed",
     confirmationCount: typeof doc.confirmationCount === "number" ? doc.confirmationCount : 0,

@@ -13,6 +13,7 @@ const NotificationSchema = new Schema(
         "application_accepted",
         "application_rejected",
         "listing_approved",
+        "listing_rejected",
         "new_application",
       ],
       required: true,
@@ -27,6 +28,7 @@ const NotificationSchema = new Schema(
 
 NotificationSchema.index({ userId: 1 });
 NotificationSchema.index({ isRead: 1 });
+NotificationSchema.index({ userId: 1, createdAt: -1 });
 
 const Notification =
   mongoose.models.Notification || mongoose.model("Notification", NotificationSchema);

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import LogoutButton from "@/components/auth/LogoutButton";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { getAuthSession } from "@/lib/auth";
 
@@ -30,7 +31,7 @@ function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
   if (role === "admin") {
     return [
       { label: "Dashboard", href: "/dashboard" },
-      { label: "Admin", href: "/admin" },
+      { label: "Admin Panel", href: "/admin" },
     ];
   }
 
@@ -63,7 +64,10 @@ export default async function Navbar() {
             ))}
           </div>
           {isAuthenticated ? (
-            <LogoutButton callbackUrl="/auth/login" />
+            <>
+              <NotificationBell />
+              <LogoutButton callbackUrl="/auth/login" />
+            </>
           ) : (
             <div className="flex items-center gap-2">
               <Button variant="ghost" asChild>

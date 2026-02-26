@@ -85,13 +85,14 @@ type ListingDetailPageProps = {
 };
 
 export default async function ListingDetailPage({ params }: ListingDetailPageProps) {
-  const listing = await getListingById(params.id);
+  const session = await getAuthSession();
+  const isAdmin = session?.user?.role === "admin";
+  const listing = await getListingById(params.id, { includeUnpublished: isAdmin });
 
   if (!listing) {
     notFound();
   }
 
-  const session = await getAuthSession();
   const isAuthenticated = Boolean(session?.user);
   const userId = session?.user?.id;
   const userRole = session?.user?.role;
