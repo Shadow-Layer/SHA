@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPublishedListings, parseListingsSearchParams } from "@/lib/listings";
 import { getAuthSession } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
-import { Listing } from "@/lib/models/Listing";
+import Listing from "@/lib/models/Listing";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
