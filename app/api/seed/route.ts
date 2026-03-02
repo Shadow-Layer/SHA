@@ -42,7 +42,8 @@ export async function POST(request: NextRequest) {
 
   // create some users
   const commonPassword = await bcrypt.hash("password", 10);
-  const admin = await User.create({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _admin = await User.create({
     name: "Admin User",
     email: "admin@example.com",
     hashedPassword: commonPassword,
@@ -71,7 +72,8 @@ export async function POST(request: NextRequest) {
     occupancyOptions: [{ type: "per_room", rentAmount: 200 }],
     photos: [],
   });
-  const listing2 = await Listing.create({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _listing2 = await Listing.create({
     landlordId: landlord._id,
     title: "Spacious house",
     area: "North Side",

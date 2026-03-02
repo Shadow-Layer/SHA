@@ -131,7 +131,7 @@ export default function ListingWizard({ userId }: ListingWizardProps) {
       }
 
       if (newUrls.length > 0) {
-        setState((prev) => ({ ...prev, photos: [...new Set([...prev.photos, ...newUrls])] }));
+        setState((prev) => ({ ...prev, photos: [...prev.photos, ...newUrls] }));
       }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : String(err));

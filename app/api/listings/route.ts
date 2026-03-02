@@ -31,31 +31,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: any;
+  let body: unknown;
   try {
     body = await request.json();
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (typeof body.title !== "string" || body.title.trim() === "") {
+  if (typeof body !== "object" || !body) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const bodyObj = body as Record<string, unknown>;
+
+  if (typeof bodyObj.title !== "string" || bodyObj.title.trim() === "") {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
-  if (typeof body.area !== "string" || body.area.trim() === "") {
+  if (typeof bodyObj.area !== "string" || bodyObj.area.trim() === "") {
     return NextResponse.json({ error: "Area is required" }, { status: 400 });
   }
 
   await connectDB();
   const listing = await Listing.create({
     landlordId: session.user.id,
-    title: body.title,
-    area: body.area,
-    landmark: body.landmark || undefined,
-    occupancyOptions: body.occupancyOptions || [],
-    amenities: body.amenities || [],
-    regulations: body.regulations || {},
-    tenantPreferences: body.tenantPreferences || [],
-    photos: body.photos || [],
+    title: bodyObj.title,
+    area: bodyObj.area,
+    landmark: bodyObj.landmark || undefined,
+    occupancyOptions: bodyObj.occupancyOptions || [],
+    amenities: bodyObj.amenities || [],
+    regulations: bodyObj.regulations || {},
+    tenantPreferences: bodyObj.tenantPreferences || [],
+    photos: bodyObj.photos || [],
     status: "pending_review",
     verificationLevel: "landlord_confirmed",
   });

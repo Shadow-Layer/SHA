@@ -39,20 +39,24 @@ export default async function InboxPage() {
   const listingMap = new Map(listings.map((l) => [String(l._id), l]));
   const userMap = new Map(users.map((u) => [String(u._id), u]));
 
-  const latestMessageByConversation = new Map<string, any>();
+  const latestMessageByConversation = new Map<string, { body: string; createdAt: Date }>();
   messages.forEach((m) => {
     const cid = String(m.conversationId);
     if (!latestMessageByConversation.has(cid)) {
-      latestMessageByConversation.set(cid, m);
+      latestMessageByConversation.set(cid, { body: m.body, createdAt: m.createdAt });
     }
   });
 
-  let conversations = rawConversations.map((c) => {
+  const conversations = rawConversations.map((c) => {
     const listing = listingMap.get(String(c.listingId));
     const otherUser =
       session.user.role === "landlord"
         ? userMap.get(String(c.studentId))
         : userMap.get(String(c.landlordId));
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    void listing;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    void otherUser;
     const lastMessage = latestMessageByConversation.get(String(c._id));
 
     return {
@@ -68,7 +72,7 @@ export default async function InboxPage() {
 
   conversations.sort((a, b) => +new Date(b.lastMessageAt) - +new Date(a.lastMessageAt));
 
-  let initialMessages: Array<any> = [];
+  let initialMessages: Array<{ id: string; conversationId: string; senderId: string; body: string; createdAt: Date }> = [];
   if (conversations.length > 0) {
     const rawMessages = await Message.find({ conversationId: conversations[0].id })
       .sort({ createdAt: 1 })

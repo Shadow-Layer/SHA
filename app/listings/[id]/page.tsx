@@ -19,6 +19,18 @@ const OCCUPANCY_LABELS: Record<string, string> = {
   custom: "Custom",
 };
 
+const AMENITY_LABELS: Record<string, string> = {
+  wifi: "WiFi",
+  borehole: "Borehole",
+  prepaid_zesa: "Prepaid ZESA",
+  backup_power: "Backup Power",
+  kitchen: "Kitchen",
+  laundry: "Laundry",
+  ensuite: "Ensuite",
+  burglar_bars: "Burglar Bars",
+  parking: "Parking",
+};
+
 function formatCurrency(value: number | null) {
   if (typeof value !== "number") {
     return "Contact for pricing";
@@ -258,7 +270,7 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
                     key={`${listing.id}-amenity-${amenity}`}
                     className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
                   >
-                    {amenity}
+                    {AMENITY_LABELS[amenity] ?? amenity}
                   </span>
                 ))
               )}

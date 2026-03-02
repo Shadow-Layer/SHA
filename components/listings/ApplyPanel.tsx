@@ -97,7 +97,7 @@ export default function ApplyPanel({
   if (submitted) {
     return (
       <section className="rounded-xl border bg-card p-6 shadow-sm">
-        <p>Application sent. You'll be notified when the landlord responds.</p>
+        <p>Application sent. You&apos;ll be notified when the landlord responds.</p>
       </section>
     );
   }

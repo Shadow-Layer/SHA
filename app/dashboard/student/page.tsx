@@ -33,8 +33,8 @@ export default async function StudentDashboardPage() {
     let rent: number | null = null;
     if (listing?.occupancyOptions?.length) {
       const rentValues = listing.occupancyOptions
-        .map((o) => (typeof o.rentAmount === "number" ? o.rentAmount : null))
-        .filter((v): v is number => v !== null);
+        .map((o: unknown) => (typeof (o as Record<string, unknown>).rentAmount === "number" ? (o as Record<string, unknown>).rentAmount : null))
+        .filter((v: unknown): v is number => v !== null);
       if (rentValues.length) {
         rent = Math.min(...rentValues);
       }

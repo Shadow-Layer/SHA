@@ -10,7 +10,7 @@ import ApplicationActions from "@/components/dashboard/ApplicationActions";
 import { Button } from "@/components/ui/button";
 
 type LandlordDashboardPageProps = {
-  params: {};
+  params: Record<string, unknown>;
   searchParams: { created?: string };
 };
 
@@ -52,7 +52,7 @@ export default async function LandlordDashboardPage({ searchParams }: LandlordDa
       <h1 className="text-2xl font-semibold">Landlord Dashboard</h1>
       {showCreatedBanner ? (
         <p className="mt-3 rounded-md border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900">
-          Your listing is under review. We'll notify you when it goes live.
+          Your listing is under review. We&apos;ll notify you when it goes live.
         </p>
       ) : null}
 
@@ -107,7 +107,8 @@ export default async function LandlordDashboardPage({ searchParams }: LandlordDa
           <div className="mt-4 space-y-4">
             {applications.map((app) => {
               const student = studentMap.get(String(app.studentId));
-              const listing = listings.find((l) => String(l._id) === String(app.listingId));
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const _listing = listings.find((l) => String(l._id) === String(app.listingId));
               return (
                 <div
                   key={String(app._id)}

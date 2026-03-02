@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession, NextAuthOptions } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { uploadToMega } from "@/lib/mega";
 import { randomUUID } from "node:crypto";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions as any);
+    const session = await getServerSession(authOptions as NextAuthOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const url = await uploadToMega(buffer, renamed, "listings");
 
     return NextResponse.json({ url }, { status: 200 });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }
