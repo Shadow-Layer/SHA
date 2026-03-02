@@ -9,7 +9,7 @@ import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 
 export const authOptions: NextAuthOptions = {
-  adapter: MongoDBAdapter(clientPromise),
+  ...(process.env.MONGODB_URI ? { adapter: MongoDBAdapter(clientPromise) } : {}),
   session: {
     strategy: "jwt",
   },
@@ -81,5 +81,5 @@ export const authOptions: NextAuthOptions = {
 };
 
 export function getAuthSession() {
-  return getServerSession(authOptions);
+  return getServerSession(authOptions).catch(() => null);
 }
