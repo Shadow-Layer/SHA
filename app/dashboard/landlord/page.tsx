@@ -60,7 +60,7 @@ export default async function LandlordDashboardPage({ searchParams }: LandlordDa
         <h2 className="text-xl font-semibold">My Listings</h2>
         {listings.length === 0 ? (
           <div className="mt-4 space-y-2 text-center">
-            <p>You haven't listed any properties yet.</p>
+            <p>You haven&apos;t listed any properties yet.</p>
             <Button asChild>
               <Link href="/dashboard/listings/new">Create your first listing</Link>
             </Button>
