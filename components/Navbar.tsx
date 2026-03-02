@@ -39,7 +39,7 @@ function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
 }
 
 export default async function Navbar() {
-  const session = await getAuthSession();
+  const session = await getAuthSession().catch(() => null);
   const role = session?.user?.role;
   const navLinks = getRoleNav(role);
   const isAuthenticated = Boolean(session?.user);
