@@ -72,7 +72,7 @@ export default async function InboxPage() {
 
   conversations.sort((a, b) => +new Date(b.lastMessageAt) - +new Date(a.lastMessageAt));
 
-  let initialMessages: Array<{ id: string; conversationId: string; senderId: string; body: string; createdAt: Date }> = [];
+  let initialMessages: Array<{ id: string; conversationId: string; senderId: string; body: string; createdAt: string }> = [];
   if (conversations.length > 0) {
     const rawMessages = await Message.find({ conversationId: conversations[0].id })
       .sort({ createdAt: 1 })
@@ -83,7 +83,7 @@ export default async function InboxPage() {
       conversationId: String(m.conversationId),
       senderId: String(m.senderId),
       body: m.body,
-      createdAt: m.createdAt,
+      createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : String(m.createdAt),
     }));
   }
 
