@@ -1,4 +1,4 @@
-import { Storage } from "megajs";
+import { Storage, type MutableFile } from "megajs";
 
 let storageInstance: Storage | null = null;
 
@@ -23,50 +23,41 @@ export async function getMegaStorage(): Promise<Storage> {
   return storageInstance;
 }
 
-function findChildByName(node: Storage | Record<string, unknown>, name: string): unknown {
-  if (!node || typeof node !== "object") return undefined;
-  const children = (node as Record<string, unknown>)["children"];
-  if (!Array.isArray(children)) return undefined;
-  return children.find((c: unknown) => typeof c === "object" && c !== null && "name" in c && (c as Record<string, unknown>)["name"] === name);
+function findChildByName(node: MutableFile | undefined, name: string): MutableFile | undefined {
+  return node?.children?.find((child) => child.name === name);
 }
 
-function mkdirPromised(parent: unknown, name: string): Promise<unknown> {
-  return new Promise<unknown>((resolve, reject) => {
-    if (typeof parent !== "object" || !parent || !("mkdir" in parent)) {
-      reject(new Error("Invalid parent node"));
-      return;
-    }
-    const mkdir = (parent as Record<string, unknown>)["mkdir"] as (name: string, cb: (err: unknown, node: unknown) => void) => void;
-    mkdir(name, (err: unknown, node: unknown) => {
-      if (err) return reject(err);
+function mkdirPromised(parent: MutableFile, name: string): Promise<MutableFile> {
+  return new Promise<MutableFile>((resolve, reject) => {
+    parent.mkdir(name, (err, node) => {
+      if (err || !node) {
+        reject(err ?? new Error("Failed to create MEGA folder"));
+        return;
+      }
       resolve(node);
     });
   });
 }
 
-function uploadPromised(folderNode: unknown, opts: Record<string, unknown>, buffer: Buffer): Promise<unknown> {
-  return new Promise<unknown>((resolve, reject) => {
-    if (typeof folderNode !== "object" || !folderNode || !("upload" in folderNode)) {
-      reject(new Error("Invalid folder node"));
-      return;
-    }
-    const upload = (folderNode as Record<string, unknown>)["upload"] as (opts: Record<string, unknown>, buffer: Buffer, cb: (err: unknown, node: unknown) => void) => void;
-    upload(opts, buffer, (err: unknown, uploadedNode: unknown) => {
-      if (err) return reject(err);
+function uploadPromised(folderNode: MutableFile, filename: string, buffer: Buffer): Promise<MutableFile> {
+  return new Promise<MutableFile>((resolve, reject) => {
+    folderNode.upload(filename, buffer, (err, uploadedNode) => {
+      if (err || !uploadedNode) {
+        reject(err ?? new Error("Failed to upload to MEGA"));
+        return;
+      }
       resolve(uploadedNode);
     });
   });
 }
 
-function linkPromised(node: unknown): Promise<string> {
+function linkPromised(node: MutableFile): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    if (typeof node !== "object" || !node || !("link" in node)) {
-      reject(new Error("Invalid node"));
-      return;
-    }
-    const link = (node as Record<string, unknown>)["link"] as (cb: (err: unknown, link: string) => void) => void;
-    link((err: unknown, link: string) => {
-      if (err) return reject(err);
+    node.link(false, (err, link) => {
+      if (err || !link) {
+        reject(err ?? new Error("Failed to get public MEGA link"));
+        return;
+      }
       resolve(link);
     });
   });
@@ -75,7 +66,7 @@ function linkPromised(node: unknown): Promise<string> {
 export async function uploadToMega(buffer: Buffer, filename: string, folder: string): Promise<string> {
   const storage = await getMegaStorage();
 
-  const root = storage.root as Storage | Record<string, unknown>;
+  const root = storage.root;
 
   // ensure /SHA folder
   let shaNode = findChildByName(root, "SHA");
@@ -89,7 +80,7 @@ export async function uploadToMega(buffer: Buffer, filename: string, folder: str
     targetFolder = await mkdirPromised(shaNode, folder);
   }
 
-  const uploaded = await uploadPromised(targetFolder, { name: filename }, buffer);
+  const uploaded = await uploadPromised(targetFolder, filename, buffer);
   const publicLink = await linkPromised(uploaded);
 
   return publicLink;
