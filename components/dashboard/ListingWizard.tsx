@@ -401,7 +401,7 @@ export default function ListingWizard({ userId }: ListingWizardProps) {
               type="file"
               accept="image/jpeg,image/png,image/webp"
               multiple
-              className="mt-2 block w/full text-sm"
+              className="mt-2 block w-full text-sm"
               onChange={(e) => void handleFileChange(e)}
               disabled={uploading}
             />
