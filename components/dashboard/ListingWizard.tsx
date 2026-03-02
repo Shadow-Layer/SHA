@@ -92,58 +92,53 @@ const OCCUPANCY_LABELS: Record<OccupancyType, string> = {
   full_house: "Full House",
 };
 
-function uploadToCloudinary(
-  file: File,
-  cloudName: string,
-  uploadPreset: string,
-  onProgress: (percent: number) => void,
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", uploadPreset);
-
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
-    xhr.upload.onprogress = (event) => {
-      if (!event.lengthComputable) {
-        return;
-      }
-      const percent = Math.round((event.loaded / event.total) * 100);
-      onProgress(percent);
-    };
-
-    xhr.onload = () => {
-      if (xhr.status < 200 || xhr.status >= 300) {
-        reject(new Error("Cloudinary upload failed"));
-        return;
-      }
-      try {
-        const response = JSON.parse(xhr.responseText) as { secure_url?: string };
-        if (!response.secure_url) {
-          reject(new Error("Upload response missing secure_url"));
-          return;
-        }
-        resolve(response.secure_url);
-      } catch {
-        reject(new Error("Could not parse Cloudinary response"));
-      }
-    };
-
-    xhr.onerror = () => reject(new Error("Upload failed"));
-    xhr.send(formData);
-  });
-}
-
 export default function ListingWizard({ userId }: ListingWizardProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [state, setState] = useState<WizardState>(EMPTY_STATE);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [progressByFile, setProgressByFile] = useState<Record<string, number>>({});
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files || !files.length) return;
+
+    setUploading(true);
+    setUploadError(null);
+    const newUrls: string[] = [];
+
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || "Upload failed");
+        }
+
+        const data = await res.json();
+        if (data?.url) {
+          newUrls.push(data.url);
+        }
+      }
+
+      if (newUrls.length > 0) {
+        setState((prev) => ({ ...prev, photos: [...new Set([...prev.photos, ...newUrls])] }));
+      }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const storageKey = useMemo(() => `sha_draft_${userId}`, [userId]);
 
@@ -168,44 +163,6 @@ export default function ListingWizard({ userId }: ListingWizardProps) {
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify({ step, state }));
   }, [step, state, storageKey]);
-
-  async function handleUpload(files: FileList | null) {
-    if (!files || !files.length) {
-      return;
-    }
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-    if (!cloudName || !uploadPreset) {
-      setUploadError("Missing Cloudinary configuration.");
-      return;
-    }
-
-    setUploading(true);
-    setUploadError(null);
-    const nextPhotos = [...state.photos];
-    const nextProgress: Record<string, number> = {};
-
-    try {
-      for (const file of Array.from(files)) {
-        const key = `${file.name}-${file.size}-${file.lastModified}`;
-        nextProgress[key] = 0;
-        setProgressByFile((prev) => ({ ...prev, [key]: 0 }));
-
-        const url = await uploadToCloudinary(file, cloudName, uploadPreset, (percent) => {
-          setProgressByFile((prev) => ({ ...prev, [key]: percent }));
-        });
-        nextPhotos.push(url);
-        nextProgress[key] = 100;
-        setProgressByFile((prev) => ({ ...prev, [key]: 100 }));
-      }
-      setState((prev) => ({ ...prev, photos: nextPhotos }));
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "Upload failed");
-    } finally {
-      setUploading(false);
-      setTimeout(() => setProgressByFile({}), 1500);
-    }
-  }
 
   async function handleSubmit() {
     setSubmitError(null);
@@ -442,18 +399,15 @@ export default function ListingWizard({ userId }: ListingWizardProps) {
             Upload photos
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               multiple
-              className="mt-2 block w-full text-sm"
-              onChange={(event) => void handleUpload(event.target.files)}
+              className="mt-2 block w/full text-sm"
+              onChange={(e) => void handleFileChange(e)}
+              disabled={uploading}
             />
           </label>
+          {uploading ? <p className="text-sm text-muted-foreground">Uploading...</p> : null}
           {uploadError ? <p className="text-sm text-red-600">{uploadError}</p> : null}
-          {Object.entries(progressByFile).map(([fileKey, progress]) => (
-            <p key={fileKey} className="text-xs text-muted-foreground">
-              {fileKey}: {progress}%
-            </p>
-          ))}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {state.photos.map((photo) => (
               // eslint-disable-next-line @next/next/no-img-element
