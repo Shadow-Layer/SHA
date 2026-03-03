@@ -18,7 +18,8 @@ function serializeError(error: unknown) {
 }
 
 export async function GET(request: Request) {
-  const key = request.headers.get("x-debug-key");
+  const url = new URL(request.url);
+  const key = request.headers.get("x-debug-key") ?? url.searchParams.get("key");
   const expected = process.env.SEED_SECRET;
 
   if (!expected || key !== expected) {
