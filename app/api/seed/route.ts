@@ -73,7 +73,10 @@ export async function POST(request: NextRequest) {
     area: "Central Campus",
     landmark: "Library",
     occupancyOptions: [{ type: "per_room", rentAmount: 200 }],
-    photos: [],
+    photos: [
+      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1493666438817-866a91353ca9?auto=format&fit=crop&w=1200&q=80",
+    ],
   });
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _listing2 = await Listing.create({
@@ -82,7 +85,10 @@ export async function POST(request: NextRequest) {
     area: "North Side",
     landmark: "Mall",
     occupancyOptions: [{ type: "full_house", rentAmount: 800 }],
-    photos: [],
+    photos: [
+      "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1560185007-c5ca9d2c014d?auto=format&fit=crop&w=1200&q=80",
+    ],
   });
 
   // verification events
