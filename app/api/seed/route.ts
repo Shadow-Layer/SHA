@@ -45,18 +45,21 @@ export async function POST(request: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _admin = await User.create({
     name: "Admin User",
+    username: "admin",
     email: "admin@example.com",
     hashedPassword: commonPassword,
     role: "admin",
   });
   const landlord = await User.create({
     name: "Landlord One",
+    username: "landlord1",
     email: "landlord@example.com",
     hashedPassword: commonPassword,
     role: "landlord",
   });
   const student = await User.create({
     name: "Student Person",
+    username: "student1",
     email: "student@example.com",
     hashedPassword: commonPassword,
     role: "student",

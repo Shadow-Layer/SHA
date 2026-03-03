@@ -19,6 +19,25 @@ function isVerifiedStudentEmail(email: string): boolean {
   return normalized.endsWith(".ac.zw") || normalized.endsWith("@africau.edu");
 }
 
+function toUsernameBase(email: string): string {
+  const local = email.split("@")[0] ?? "user";
+  const normalized = local.toLowerCase().replace(/[^a-z0-9._-]/g, "");
+  return normalized.length > 0 ? normalized : "user";
+}
+
+async function buildUniqueUsername(email: string): Promise<string> {
+  const base = toUsernameBase(email);
+  let candidate = base;
+  let counter = 1;
+
+  while (await User.exists({ username: candidate })) {
+    counter += 1;
+    candidate = `${base}${counter}`;
+  }
+
+  return candidate;
+}
+
 export async function POST(req: Request) {
   const body = (await req.json()) as RegisterBody;
 
@@ -57,8 +76,6 @@ export async function POST(req: Request) {
   await connectDB();
 
   const existingUser = await User.findOne({ email }).lean();
-  console.log("Debug: email =", email);
-  console.log("Debug: existingUser =", existingUser);
   
   if (existingUser) {
     return NextResponse.json(
@@ -68,10 +85,12 @@ export async function POST(req: Request) {
   }
 
   const hashedPassword = await bcrypt.hash(password, 12);
+  const username = await buildUniqueUsername(email);
 
   try {
     await User.create({
       name,
+      username,
       email,
       phone,
       hashedPassword,
@@ -79,14 +98,12 @@ export async function POST(req: Request) {
       isVerifiedStudent: isVerifiedStudentEmail(email),
     });
   } catch (error) {
-    console.log("Debug: create error =", error);
     if (
       typeof error === "object" &&
       error !== null &&
       "code" in error &&
       (error as { code?: number }).code === 11000
     ) {
-      console.log("Debug: Caught 11000 error");
       return NextResponse.json(
         { error: "An account with this email already exists." },
         { status: 409 },
