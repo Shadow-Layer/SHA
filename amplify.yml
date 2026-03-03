@@ -5,9 +5,12 @@ frontend:
       commands:
         - echo "=== AMPLIFY ENV CHECK START ==="
         - echo "AWS_BRANCH=$AWS_BRANCH"
-        - echo "MY_SECRET_SET=$([ -n "$MONGODB_URI" ] && echo yes || echo no)"
-        - echo "MY_SECRET_SET=$([ -n "$NEXTAUTH_SECRET" ] && echo yes || echo no)"
-        
+        - echo "MONGODB_URI=$([ -n "$MONGODB_URI" ] && echo yes || echo no)"
+        - echo "NEXTAUTH_SECRET_SET=$([ -n "$NEXTAUTH_SECRET" ] && echo yes || echo no)"
+        - echo "NEXTAUTH_URL=$NEXTAUTH_URL"
+        - echo "MEGA_EMAIL=$MEGA_EMAIL"
+        - echo "MEGA_PASSWORD_SET=$([ -n "$MEGA_PASSWORD" ] && echo yes || echo no)"
+        - echo "SEED_SECRET_SET=$SEED_SECRET"
        
         - echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL"
         - echo "=== AMPLIFY ENV CHECK END ==="
