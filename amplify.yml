@@ -5,15 +5,22 @@ frontend:
       commands:
         - echo "=== AMPLIFY ENV CHECK START ==="
         - echo "AWS_BRANCH=$AWS_BRANCH"
-        - echo "MONGODB_URI=$([ -n "$MONGODB_URI" ] && echo yes || echo no)"
+        - echo "MONGODB_URI_SET=$([ -n "$MONGODB_URI" ] && echo yes || echo no)"
         - echo "NEXTAUTH_SECRET_SET=$([ -n "$NEXTAUTH_SECRET" ] && echo yes || echo no)"
-        - echo "NEXTAUTH_URL=$NEXTAUTH_URL"
-        - echo "MEGA_EMAIL=$MEGA_EMAIL"
+        - echo "NEXTAUTH_URL_SET=$([ -n "$NEXTAUTH_URL" ] && echo yes || echo no)"
+        - echo "MEGA_EMAIL_SET=$([ -n "$MEGA_EMAIL" ] && echo yes || echo no)"
         - echo "MEGA_PASSWORD_SET=$([ -n "$MEGA_PASSWORD" ] && echo yes || echo no)"
-        - echo "SEED_SECRET_SET=$SEED_SECRET"
-       
-        - echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL"
+        - echo "SEED_SECRET_SET=$([ -n "$SEED_SECRET" ] && echo yes || echo no)"
+        - echo "NEXT_PUBLIC_API_URL_SET=$([ -n "$NEXT_PUBLIC_API_URL" ] && echo yes || echo no)"
         - echo "=== AMPLIFY ENV CHECK END ==="
+        - rm -f .env.production
+        - printf '%s\n' "MONGODB_URI=$MONGODB_URI" >> .env.production
+        - printf '%s\n' "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" >> .env.production
+        - printf '%s\n' "NEXTAUTH_URL=$NEXTAUTH_URL" >> .env.production
+        - printf '%s\n' "MEGA_EMAIL=$MEGA_EMAIL" >> .env.production
+        - printf '%s\n' "MEGA_PASSWORD=$MEGA_PASSWORD" >> .env.production
+        - printf '%s\n' "SEED_SECRET=$SEED_SECRET" >> .env.production
+        - printf '%s\n' "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL" >> .env.production
         - npm ci
     build:
       commands:
