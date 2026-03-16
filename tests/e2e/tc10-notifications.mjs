@@ -2,10 +2,24 @@ import { config } from "./config.mjs";
 import { apiGet, apiPatch, assert, login, readState } from "./helpers.mjs";
 
 export async function run(runner) {
-  const state = readState();
-  const verifiedStudentEmail = state.verifiedStudentEmail ?? config.STUDENT_VERIFIED_EMAIL;
-  const verifiedStudentPassword = state.verifiedStudentPassword ?? config.STUDENT_VERIFIED_PASSWORD;
+  let verifiedStudentEmail;
+  let verifiedStudentPassword;
   let notificationId;
+
+  await runner.run("TC10: Preconditions", async () => {
+    const state = readState();
+    assert(
+      state.verifiedStudentEmail && state.verifiedStudentPassword,
+      "verifiedStudentEmail not found in state — tc04 must run first"
+    );
+
+    verifiedStudentEmail = state.verifiedStudentEmail;
+    verifiedStudentPassword = state.verifiedStudentPassword;
+  });
+
+  if (!verifiedStudentEmail || !verifiedStudentPassword) {
+    return;
+  }
 
   await runner.run("TC10: Student notifications endpoint returns items", async () => {
     const studentJar = await login(config.BASE_URL, verifiedStudentEmail, verifiedStudentPassword);

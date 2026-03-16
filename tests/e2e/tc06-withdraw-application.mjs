@@ -2,9 +2,23 @@ import { config } from "./config.mjs";
 import { apiPatch, apiPost, assert, login, readState, writeState } from "./helpers.mjs";
 
 export async function run(runner) {
-  const state = readState();
-  const verifiedStudentEmail = state.verifiedStudentEmail ?? config.STUDENT_VERIFIED_EMAIL;
-  const verifiedStudentPassword = state.verifiedStudentPassword ?? config.STUDENT_VERIFIED_PASSWORD;
+  let verifiedStudentEmail;
+  let verifiedStudentPassword;
+
+  await runner.run("TC6: Preconditions", async () => {
+    const state = readState();
+    assert(
+      state.verifiedStudentEmail && state.verifiedStudentPassword,
+      "verifiedStudentEmail not found in state — tc04 must run first"
+    );
+
+    verifiedStudentEmail = state.verifiedStudentEmail;
+    verifiedStudentPassword = state.verifiedStudentPassword;
+  });
+
+  if (!verifiedStudentEmail || !verifiedStudentPassword) {
+    return;
+  }
 
   await runner.run("TC6: Student withdraws application", async () => {
     const { applicationId } = readState();
