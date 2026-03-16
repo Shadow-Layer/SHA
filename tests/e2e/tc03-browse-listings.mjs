@@ -17,6 +17,7 @@ export async function run(runner) {
     );
 
     assert(response.status === 200, `expected status 200, got ${response.status}`);
+    assert(response.body.listings.length > 0, "expected at least one listing for area filter");
     assert(
       response.body.listings.every((listing) => listing.area === listingArea),
       "expected all listings to match area filter"
@@ -27,6 +28,7 @@ export async function run(runner) {
     const response = await apiGet(config.BASE_URL, "/api/listings?maxRent=100");
 
     assert(response.status === 200, `expected status 200, got ${response.status}`);
+    assert(response.body.listings.length > 0, "expected at least one listing for maxRent filter");
     assert(
       response.body.listings.every((listing) =>
         Array.isArray(listing.occupancyOptions) &&
@@ -41,6 +43,10 @@ export async function run(runner) {
 
     assert(response.status === 200, `expected status 200, got ${response.status}`);
     assert(
+      response.body.listings.length > 0,
+      "expected at least one listing for occupancyType filter"
+    );
+    assert(
       response.body.listings.every((listing) =>
         Array.isArray(listing.occupancyOptions) &&
         listing.occupancyOptions.some((option) => option.occupancyType === "per_room")
@@ -49,13 +55,17 @@ export async function run(runner) {
     );
   });
 
-  await runner.run("TC3: amenities filter matches WiFi", async () => {
-    const response = await apiGet(config.BASE_URL, "/api/listings?amenities=WiFi");
+  await runner.run("TC3: amenities filter matches backup_power", async () => {
+    const response = await apiGet(config.BASE_URL, "/api/listings?amenities=backup_power");
 
     assert(response.status === 200, `expected status 200, got ${response.status}`);
+    assert(response.body.listings.length > 0, "expected at least one listing for amenities filter");
     assert(
-      response.body.listings.every((listing) => Array.isArray(listing.amenities) && listing.amenities.includes("WiFi")),
-      "expected all listings to include WiFi amenity"
+      response.body.listings.every(
+        (listing) =>
+          Array.isArray(listing.amenities) && listing.amenities.includes("backup_power")
+      ),
+      "expected all listings to include backup_power amenity"
     );
   });
 
@@ -67,5 +77,6 @@ export async function run(runner) {
     assert(response.body?.area, "expected listing area");
     assert(Array.isArray(response.body?.occupancyOptions), "expected occupancyOptions array");
     assert(Array.isArray(response.body?.amenities), "expected amenities array");
+    assert(response.body.amenities.includes("backup_power"), "expected canonical backup_power amenity");
   });
 }

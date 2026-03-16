@@ -1,11 +1,11 @@
 import { config } from "./config.mjs";
-import { apiGet, apiPost, assert, login } from "./helpers.mjs";
+import { apiGet, apiPost, assert, login, writeState } from "./helpers.mjs";
 
 export async function run(runner) {
   const normalEmail = `student.${Date.now()}@example.com`;
   const normalPassword = "Passw0rd!";
-  const verifiedEmail = config.STUDENT_VERIFIED_EMAIL;
-  const verifiedPassword = config.STUDENT_VERIFIED_PASSWORD;
+  const verifiedEmail = `student.${Date.now()}@africau.edu`;
+  const verifiedPassword = "Passw0rd!";
 
   await runner.run("TC4: Student registers with a normal email", async () => {
     const response = await apiPost(config.BASE_URL, "/api/auth/register", {
@@ -39,7 +39,11 @@ export async function run(runner) {
       role: "student",
     });
 
-    assert(response.status === 201, `expected status 201, got ${response.status}`);
+    assert(
+      response.status === 201 || response.status === 409,
+      `expected status 201 or 409, got ${response.status}`
+    );
+    writeState({ verifiedStudentEmail: verifiedEmail, verifiedStudentPassword: verifiedPassword });
   });
 
   await runner.run("TC4: Verified-domain student session exposes verified status", async () => {

@@ -2,6 +2,10 @@ import { config } from "./config.mjs";
 import { apiPatch, apiPost, assert, login, readState, writeState } from "./helpers.mjs";
 
 export async function run(runner) {
+  const state = readState();
+  const verifiedStudentEmail = state.verifiedStudentEmail ?? config.STUDENT_VERIFIED_EMAIL;
+  const verifiedStudentPassword = state.verifiedStudentPassword ?? config.STUDENT_VERIFIED_PASSWORD;
+
   await runner.run("TC6: Student withdraws application", async () => {
     const { applicationId } = readState();
     const studentJar = await login(config.BASE_URL, config.STUDENT_EMAIL, config.STUDENT_PASSWORD);
@@ -18,11 +22,7 @@ export async function run(runner) {
 
   await runner.run("TC6: Verified student creates separate pending application for TC9", async () => {
     const { listingId } = readState();
-    const studentJar = await login(
-      config.BASE_URL,
-      config.STUDENT_VERIFIED_EMAIL,
-      config.STUDENT_VERIFIED_PASSWORD
-    );
+    const studentJar = await login(config.BASE_URL, verifiedStudentEmail, verifiedStudentPassword);
     const response = await apiPost(
       config.BASE_URL,
       `/api/listings/${listingId}/apply`,

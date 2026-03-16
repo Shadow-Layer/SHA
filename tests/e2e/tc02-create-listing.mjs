@@ -15,7 +15,7 @@ export async function run(runner) {
         rent: 95,
       },
     ],
-    amenities: ["WiFi", "Solar", "Water Tank"],
+    amenities: ["wifi", "borehole", "backup_power"],
     regulations: ["No smoking"],
     photos: [],
   };
