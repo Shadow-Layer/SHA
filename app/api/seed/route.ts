@@ -50,114 +50,298 @@ export async function POST(request: NextRequest) {
     hashedPassword: commonPassword,
     role: "admin",
   });
-  const landlord = await User.create({
+  const landlord1 = await User.create({
     name: "Landlord One",
     username: "landlord1",
-    email: "landlord@example.com",
+    email: "landlord1@example.com",
     hashedPassword: commonPassword,
     role: "landlord",
   });
-  const student = await User.create({
-    name: "Student Person",
+  const landlord2 = await User.create({
+    name: "Landlord Two",
+    username: "landlord2",
+    email: "landlord2@example.com",
+    hashedPassword: commonPassword,
+    role: "landlord",
+  });
+  const student1 = await User.create({
+    name: "Student One",
     username: "student1",
-    email: "student@example.com",
+    email: "student1@example.com",
+    hashedPassword: commonPassword,
+    role: "student",
+    isVerifiedStudent: false,
+  });
+  const student2 = await User.create({
+    name: "Student Two",
+    username: "student2",
+    email: "student2@example.com",
+    hashedPassword: commonPassword,
+    role: "student",
+    isVerifiedStudent: false,
+  });
+  const student3 = await User.create({
+    name: "Verified Student",
+    username: "student3",
+    email: "s123@africau.edu",
     hashedPassword: commonPassword,
     role: "student",
     isVerifiedStudent: true,
   });
 
   // listings for landlord
-  const listing1 = await Listing.create({
-    landlordId: landlord._id,
-    title: "Cozy student flat",
+  const listingGreenside = await Listing.create({
+    landlordId: landlord1._id,
+    title: "Greenside Garden Rooms",
+    area: "Greenside",
+    landmark: "Botanical Gardens",
+    occupancyOptions: [{ type: "per_room", rentAmount: 80 }],
+    amenities: ["wifi", "kitchen"],
+    photos: [],
+    status: "published",
+    verificationLevel: "landlord_confirmed",
+    confirmationCount: 0,
+    suspiciousCount: 1,
+  });
+  const listingChikanga = await Listing.create({
+    landlordId: landlord1._id,
+    title: "Chikanga Flats",
+    area: "Chikanga",
+    landmark: "Chikanga Shops",
+    occupancyOptions: [{ type: "per_head_double", rentAmount: 120 }],
+    amenities: ["parking"],
+    photos: [],
+    status: "published",
+    verificationLevel: "landlord_confirmed",
+    confirmationCount: 2,
+    suspiciousCount: 0,
+  });
+  const listingSakubva = await Listing.create({
+    landlordId: landlord2._id,
+    title: "Sakubva Courtyard House",
+    area: "Sakubva",
+    landmark: "Market",
+    occupancyOptions: [{ type: "full_house", rentAmount: 250 }],
+    amenities: ["borehole", "wifi"],
+    photos: [],
+    status: "published",
+    verificationLevel: "student_verified",
+    confirmationCount: 3,
+    suspiciousCount: 0,
+  });
+  const listingWarning = await Listing.create({
+    landlordId: landlord2._id,
+    title: "Central Campus Annex",
     area: "Central Campus",
     landmark: "Library",
-    occupancyOptions: [{ type: "per_room", rentAmount: 200 }],
-    photos: [
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1493666438817-866a91353ca9?auto=format&fit=crop&w=1200&q=80",
-    ],
+    occupancyOptions: [{ type: "per_room", rentAmount: 60 }],
+    amenities: ["wifi", "laundry"],
+    photos: [],
+    status: "warning",
+    verificationLevel: "landlord_confirmed",
+    confirmationCount: 0,
+    suspiciousCount: 2,
   });
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _listing2 = await Listing.create({
-    landlordId: landlord._id,
-    title: "Spacious house",
+  const listingPending = await Listing.create({
+    landlordId: landlord2._id,
+    title: "North Side Studio (Pending)",
     area: "North Side",
     landmark: "Mall",
-    occupancyOptions: [{ type: "full_house", rentAmount: 800 }],
-    photos: [
-      "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1560185007-c5ca9d2c014d?auto=format&fit=crop&w=1200&q=80",
-    ],
+    occupancyOptions: [{ type: "per_room", rentAmount: 140 }],
+    amenities: ["parking", "backup_power"],
+    photos: [],
+    status: "pending_review",
+    verificationLevel: "landlord_confirmed",
+    confirmationCount: 0,
+    suspiciousCount: 0,
   });
 
   // verification events
-  await VerificationEvent.create({
-    listingId: listing1._id,
-    studentId: student._id,
-    type: "seen",
-    note: "Passed by on way to class",
-  });
+  await VerificationEvent.create([
+    {
+      listingId: listingGreenside._id,
+      studentId: student1._id,
+      type: "suspicious",
+      note: "Listing details felt incomplete.",
+    },
+    {
+      listingId: listingChikanga._id,
+      studentId: student1._id,
+      type: "seen",
+      note: "Visited during a viewing.",
+    },
+    {
+      listingId: listingChikanga._id,
+      studentId: student2._id,
+      type: "seen",
+      note: "Friend stayed there last term.",
+    },
+    {
+      listingId: listingSakubva._id,
+      studentId: student1._id,
+      type: "stayed",
+      note: "Stayed here last semester.",
+    },
+    {
+      listingId: listingSakubva._id,
+      studentId: student2._id,
+      type: "seen",
+      note: "Visited a friend here.",
+    },
+    {
+      listingId: listingSakubva._id,
+      studentId: student3._id,
+      type: "seen",
+      note: "Walked by often.",
+    },
+    {
+      listingId: listingWarning._id,
+      studentId: student1._id,
+      type: "suspicious",
+      note: "Phone number kept changing.",
+    },
+    {
+      listingId: listingWarning._id,
+      studentId: student2._id,
+      type: "suspicious",
+      note: "Photos look inconsistent.",
+    },
+  ]);
 
   // application from student to listing1
-  const application = await Application.create({
-    listingId: listing1._id,
-    studentId: student._id,
-    landlordId: landlord._id,
+  const pendingApplication = await Application.create({
+    listingId: listingGreenside._id,
+    studentId: student1._id,
+    landlordId: landlord1._id,
     moveInDate: new Date(),
     occupancyPreference: "per_room",
-    message: "I'm interested",
+    message: "Is the room still available?",
+    status: "pending",
+  });
+  const acceptedApplication = await Application.create({
+    listingId: listingChikanga._id,
+    studentId: student2._id,
+    landlordId: landlord1._id,
+    moveInDate: new Date(),
+    occupancyPreference: "per_head_double",
+    message: "Looking to move in next month.",
+    status: "accepted",
   });
 
   // conversation and some messages
   const convo = await Conversation.create({
-    applicationId: application._id,
-    listingId: listing1._id,
-    studentId: student._id,
-    landlordId: landlord._id,
+    applicationId: acceptedApplication._id,
+    listingId: listingChikanga._id,
+    studentId: student2._id,
+    landlordId: landlord1._id,
   });
   await Message.create({
     conversationId: convo._id,
-    senderId: student._id,
-    body: "Hi, is the room still available?",
+    senderId: student2._id,
+    body: "Hi, thanks for accepting. When can I view the place?",
   });
   await Message.create({
     conversationId: convo._id,
-    senderId: landlord._id,
-    body: "Yes it is, when can you move in?",
+    senderId: landlord1._id,
+    body: "This weekend works. Let me know a time.",
   });
 
   // forum posts and comments
-  const post = await ForumPost.create({
-    authorId: student._id,
-    category: "general",
-    title: "Looking for a roommate",
-    body: "Does anyone need a roommate near campus?",
-  });
-  await ForumComment.create({
-    postId: post._id,
-    authorId: landlord._id,
-    body: "I might be interested",
-  });
+  const forumPosts = await ForumPost.create([
+    {
+      authorId: student1._id,
+      category: "houses",
+      title: "Greenside room experiences?",
+      body: "Has anyone stayed around Greenside recently?",
+    },
+    {
+      authorId: student1._id,
+      category: "landlords",
+      title: "Landlord response times",
+      body: "How fast do landlords usually respond?",
+    },
+    {
+      authorId: student2._id,
+      category: "locations",
+      title: "Quiet spots near Sakubva",
+      body: "Looking for quieter areas with good transport.",
+    },
+    {
+      authorId: student2._id,
+      category: "amenities",
+      title: "WiFi reliability",
+      body: "Which listings have stable WiFi?",
+    },
+    {
+      authorId: student3._id,
+      category: "service_providers",
+      title: "Reliable moving services?",
+      body: "Any recommendations for affordable movers?",
+    },
+    {
+      authorId: student3._id,
+      category: "general",
+      title: "Roommate search tips",
+      body: "Best places to find roommates?",
+    },
+  ]);
+  const housesPost = forumPosts.find((item) => item.category === "houses");
+  if (housesPost) {
+    await ForumComment.create({
+      postId: housesPost._id,
+      authorId: student2._id,
+      body: "I stayed nearby last year and it was decent.",
+    });
+  }
 
   // notifications
-  await Notification.create({
-    userId: landlord._id,
-    type: "new_application",
-    message: "Student Person applied to your listing",
-    relatedId: String(application._id),
-    relatedType: "application",
-  });
+  await Notification.create([
+    {
+      userId: landlord1._id,
+      type: "new_application",
+      message: "Student One applied to your listing",
+      relatedId: String(pendingApplication._id),
+      relatedType: "application",
+    },
+    {
+      userId: student2._id,
+      type: "application_accepted",
+      message: "Your application for Chikanga Flats was accepted.",
+      relatedId: String(acceptedApplication._id),
+      relatedType: "application",
+    },
+    {
+      userId: student1._id,
+      type: "application_rejected",
+      message: "Your application for Greenside Garden Rooms was rejected.",
+      relatedId: String(pendingApplication._id),
+      relatedType: "application",
+    },
+    {
+      userId: landlord2._id,
+      type: "listing_approved",
+      message: "Your listing Sakubva Courtyard House is now live.",
+      relatedId: String(listingSakubva._id),
+      relatedType: "listing",
+    },
+    {
+      userId: landlord2._id,
+      type: "listing_rejected",
+      message: "Your listing North Side Studio (Pending) was removed by admin.",
+      relatedId: String(listingPending._id),
+      relatedType: "listing",
+    },
+  ]);
 
   return NextResponse.json({
-    users: 3,
-    listings: 2,
-    verificationEvents: 1,
-    applications: 1,
+    users: 6,
+    listings: 5,
+    verificationEvents: 8,
+    applications: 2,
     conversations: 1,
     messages: 2,
-    forumPosts: 1,
-    forumComments: 1,
-    notifications: 1,
+    forumPosts: 6,
+    forumComments: housesPost ? 1 : 0,
+    notifications: 5,
   });
 }
