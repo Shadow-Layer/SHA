@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import bcrypt from "bcryptjs";
+import type { Types } from "mongoose";
 
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
@@ -12,6 +13,11 @@ import Message from "@/lib/models/Message";
 import ForumPost from "@/lib/models/ForumPost";
 import ForumComment from "@/lib/models/ForumComment";
 import Notification from "@/lib/models/Notification";
+
+type SeededForumPost = {
+  _id: Types.ObjectId;
+  category: string;
+};
 
 // POST-only route that seeds the database with demo/test data.  An explicit
 // secret must be provided via the `x-seed-secret` header (or the body) and it
@@ -285,7 +291,9 @@ export async function POST(request: NextRequest) {
       body: "Best places to find roommates?",
     },
   ]);
-  const housesPost = forumPosts.find((item) => item.category === "houses");
+  const housesPost = forumPosts.find(
+    (item: SeededForumPost) => item.category === "houses"
+  );
   if (housesPost) {
     await ForumComment.create({
       postId: housesPost._id,
