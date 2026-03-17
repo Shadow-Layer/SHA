@@ -3,8 +3,8 @@ import { apiPost, assert, login, readState, writeState } from "./helpers.mjs";
 
 export async function run(runner) {
   await runner.run("TC5: Student applies for accommodation", async () => {
-    const { listingId } = readState();
-    const studentJar = await login(config.BASE_URL, config.STUDENT_EMAIL, config.STUDENT_PASSWORD);
+    const { listingId, tenantEmail, password } = readState();
+    const studentJar = await login(config.BASE_URL, tenantEmail, password);
     const response = await apiPost(
       config.BASE_URL,
       `/api/listings/${listingId}/apply`,

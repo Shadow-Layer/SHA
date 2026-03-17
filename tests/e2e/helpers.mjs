@@ -108,6 +108,32 @@ export function apiPatch(baseUrl, routePath, body, cookieJar = new Map()) {
   return apiRequest("PATCH", baseUrl, routePath, body, cookieJar);
 }
 
+export async function ensureBaseUrlReachable(baseUrl) {
+  try {
+    const response = await fetch(normalizeUrl(baseUrl, "/api/listings"), {
+      method: "GET",
+      redirect: "manual",
+    });
+
+    return response.status;
+  } catch (error) {
+    const detail =
+      error && typeof error === "object" && "cause" in error && error.cause
+        ? String(error.cause)
+        : error instanceof Error
+          ? error.message
+          : String(error);
+
+    throw new Error(
+      [
+        `E2E target is unreachable at ${baseUrl}.`,
+        "Set BASE_URL to a live app URL, or start the local app at that address before running E2E tests.",
+        `Connection detail: ${detail}`,
+      ].join("\n")
+    );
+  }
+}
+
 export async function getCsrfToken(baseUrl) {
   const response = await apiGet(baseUrl, "/api/auth/csrf", new Map());
   assert(response.status === 200, `expected CSRF status 200, got ${response.status}`);
@@ -164,6 +190,11 @@ export function writeState(updates) {
     ...updates,
   };
 
+  fs.writeFileSync(STATE_FILE, `${JSON.stringify(nextState, null, 2)}\n`, "utf8");
+  return nextState;
+}
+
+export function resetState(nextState = {}) {
   fs.writeFileSync(STATE_FILE, `${JSON.stringify(nextState, null, 2)}\n`, "utf8");
   return nextState;
 }

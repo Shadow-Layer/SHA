@@ -16,13 +16,15 @@ export async function run(runner) {
     verifiedStudentPassword = state.verifiedStudentPassword;
   });
 
-  if (!verifiedStudentEmail || !verifiedStudentPassword) {
+  const { tenantEmail, password } = readState();
+
+  if (!tenantEmail || !password || !verifiedStudentEmail || !verifiedStudentPassword) {
     return;
   }
 
   await runner.run("TC6: Student withdraws application", async () => {
     const { applicationId } = readState();
-    const studentJar = await login(config.BASE_URL, config.STUDENT_EMAIL, config.STUDENT_PASSWORD);
+    const studentJar = await login(config.BASE_URL, tenantEmail, password);
     const response = await apiPatch(
       config.BASE_URL,
       `/api/applications/${applicationId}`,

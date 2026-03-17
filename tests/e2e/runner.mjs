@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
-import { makeTestRunner } from "./helpers.mjs";
+import { ensureBaseUrlReachable, makeTestRunner, resetState } from "./helpers.mjs";
+import { config } from "./config.mjs";
 import { run as runTc01 } from "./tc01-landlord-register.mjs";
 import { run as runTc02 } from "./tc02-create-listing.mjs";
 import { run as runTc03 } from "./tc03-browse-listings.mjs";
@@ -17,6 +18,25 @@ import { run as runTc10 } from "./tc10-notifications.mjs";
 dotenv.config({
   path: path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../../.env.local"),
 });
+
+const now = Date.now();
+
+resetState({
+  landlordEmail: `landlord_${now}@test.creapy.com`,
+  tenantEmail: `tenant_${now}@test.creapy.com`,
+  verifiedStudentEmail: null,
+  verifiedStudentPassword: null,
+  landlordToken: null,
+  landlordId: null,
+  tenantToken: null,
+  tenantId: null,
+  listingId: null,
+  listingFeeRef: null,
+  tenantPremiumRef: null,
+  password: "TestPass123!",
+});
+
+await ensureBaseUrlReachable(config.BASE_URL);
 
 const runner = makeTestRunner();
 

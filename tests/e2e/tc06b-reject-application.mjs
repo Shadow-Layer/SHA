@@ -44,7 +44,8 @@ export async function run(runner) {
   });
 
   await runner.run("TC6b: Landlord rejects application — status is rejected", async () => {
-    const landlordJar = await login(config.BASE_URL, config.LANDLORD_EMAIL, config.LANDLORD_PASSWORD);
+    const { landlordEmail, password } = readState();
+    const landlordJar = await login(config.BASE_URL, landlordEmail, password);
     const response = await apiPatch(
       config.BASE_URL,
       `/api/applications/${rejectApplicationId}`,

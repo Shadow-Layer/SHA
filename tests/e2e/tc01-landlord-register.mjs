@@ -1,12 +1,11 @@
 import { config } from "./config.mjs";
-import { apiPost, assert, login } from "./helpers.mjs";
+import { apiPost, assert, login, readState } from "./helpers.mjs";
 
 export async function run(runner) {
-  const uniqueEmail = `landlord.${Date.now()}@example.com`;
-  const password = "Passw0rd!";
+  const { landlordEmail, password } = readState();
   const payload = {
     name: "E2E Landlord",
-    email: uniqueEmail,
+    email: landlordEmail,
     phone: `077${Date.now().toString().slice(-7)}`,
     password,
     confirmPassword: password,
@@ -20,7 +19,7 @@ export async function run(runner) {
   });
 
   await runner.run("TC1: Landlord can log in after registration", async () => {
-    const cookieJar = await login(config.BASE_URL, uniqueEmail, password);
+    const cookieJar = await login(config.BASE_URL, landlordEmail, password);
     assert(
       Array.from(cookieJar.keys()).some((name) => name.includes("next-auth.session-token")),
       "expected session token cookie for landlord login"

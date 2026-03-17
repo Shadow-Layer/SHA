@@ -1,5 +1,6 @@
 import { config } from "./config.mjs";
-import { apiPatch, apiPost, assert, login, writeState } from "./helpers.mjs";
+import { publishListing } from "./db.mjs";
+import { apiGet, apiPost, assert, login, readState, writeState } from "./helpers.mjs";
 
 export async function run(runner) {
   const area = `E2E Area ${Date.now()}`;
@@ -21,7 +22,8 @@ export async function run(runner) {
   };
 
   await runner.run("TC2: Landlord creates listing", async () => {
-    const landlordJar = await login(config.BASE_URL, config.LANDLORD_EMAIL, config.LANDLORD_PASSWORD);
+    const { landlordEmail, password } = readState();
+    const landlordJar = await login(config.BASE_URL, landlordEmail, password);
     const response = await apiPost(config.BASE_URL, "/api/listings", listingPayload, landlordJar);
 
     assert(response.status === 201, `expected status 201, got ${response.status}`);
@@ -34,14 +36,15 @@ export async function run(runner) {
     writeState({ listingId: response.body.id, listingArea: area });
   });
 
-  await runner.run("TC3: Admin approval publishes listing", async () => {
-    const adminJar = await login(config.BASE_URL, config.ADMIN_EMAIL, config.ADMIN_PASSWORD);
-    const response = await apiPatch(
-      config.BASE_URL,
-      `/api/admin/listings/${writeState({}).listingId}`,
-      { action: "approve" },
-      adminJar
-    );
+  await runner.run("TC2: E2E publish step marks listing as published", async () => {
+    const { listingId } = readState();
+    const listing = await publishListing(listingId);
+    assert(listing.status === "published", `expected published, got ${listing.status}`);
+  });
+
+  await runner.run("TC2: Published listing is visible via listing detail", async () => {
+    const { listingId } = readState();
+    const response = await apiGet(config.BASE_URL, `/api/listings/${listingId}`);
 
     assert(response.status === 200, `expected status 200, got ${response.status}`);
     assert(response.body?.status === "published", `expected published, got ${response.body?.status}`);

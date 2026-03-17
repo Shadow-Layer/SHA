@@ -16,13 +16,16 @@ export async function run(runner) {
     verifiedStudentPassword = state.verifiedStudentPassword;
   });
 
-  if (!verifiedStudentEmail || !verifiedStudentPassword) {
+  const { password } = readState();
+
+  if (!password || !verifiedStudentEmail || !verifiedStudentPassword) {
     return;
   }
 
   await runner.run("TC9: Landlord accepts application and creates conversation", async () => {
     const { tc09ApplicationId } = readState();
-    const landlordJar = await login(config.BASE_URL, config.LANDLORD_EMAIL, config.LANDLORD_PASSWORD);
+    const { landlordEmail } = readState();
+    const landlordJar = await login(config.BASE_URL, landlordEmail, password);
     const response = await apiPatch(
       config.BASE_URL,
       `/api/applications/${tc09ApplicationId}`,

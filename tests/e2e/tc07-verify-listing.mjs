@@ -3,8 +3,8 @@ import { apiPost, assert, login, readState } from "./helpers.mjs";
 
 export async function run(runner) {
   await runner.run("TC7: Student verifies listing once", async () => {
-    const { listingId } = readState();
-    const studentJar = await login(config.BASE_URL, config.STUDENT_EMAIL, config.STUDENT_PASSWORD);
+    const { listingId, tenantEmail, password } = readState();
+    const studentJar = await login(config.BASE_URL, tenantEmail, password);
     const response = await apiPost(
       config.BASE_URL,
       `/api/listings/${listingId}/verify`,
@@ -20,8 +20,8 @@ export async function run(runner) {
   });
 
   await runner.run("TC7: Duplicate listing verification is blocked", async () => {
-    const { listingId } = readState();
-    const studentJar = await login(config.BASE_URL, config.STUDENT_EMAIL, config.STUDENT_PASSWORD);
+    const { listingId, tenantEmail, password } = readState();
+    const studentJar = await login(config.BASE_URL, tenantEmail, password);
     const response = await apiPost(
       config.BASE_URL,
       `/api/listings/${listingId}/verify`,
