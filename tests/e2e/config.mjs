@@ -1,6 +1,10 @@
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config({ path: ".env.local" });
+dotenv.config({
+  path: path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../../.env.local"),
+});
 
 const read = (key, fallback = "") => process.env[key] ?? fallback;
 

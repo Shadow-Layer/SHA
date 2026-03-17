@@ -1,4 +1,6 @@
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import { makeTestRunner } from "./helpers.mjs";
 import { run as runTc01 } from "./tc01-landlord-register.mjs";
 import { run as runTc02 } from "./tc02-create-listing.mjs";
@@ -12,7 +14,9 @@ import { run as runTc08 } from "./tc08-forum.mjs";
 import { run as runTc09 } from "./tc09-inbox-messaging.mjs";
 import { run as runTc10 } from "./tc10-notifications.mjs";
 
-dotenv.config({ path: ".env.local" });
+dotenv.config({
+  path: path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../../.env.local"),
+});
 
 const runner = makeTestRunner();
 
