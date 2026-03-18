@@ -1,6 +1,3 @@
-import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
 import { ensureBaseUrlReachable, makeTestRunner, resetState } from "./helpers.mjs";
 import { config } from "./config.mjs";
 import { run as runTc01 } from "./tc01-landlord-register.mjs";
@@ -14,10 +11,6 @@ import { run as runTc07 } from "./tc07-verify-listing.mjs";
 import { run as runTc08 } from "./tc08-forum.mjs";
 import { run as runTc09 } from "./tc09-inbox-messaging.mjs";
 import { run as runTc10 } from "./tc10-notifications.mjs";
-
-dotenv.config({
-  path: path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../../.env.local"),
-});
 
 const now = Date.now();
 
@@ -37,6 +30,33 @@ resetState({
 });
 
 await ensureBaseUrlReachable(config.BASE_URL);
+
+async function seedDatabase() {
+  let response;
+
+  try {
+    response = await fetch(`${config.BASE_URL}/api/seed`, {
+      method: "POST",
+      headers: {
+        "x-seed-secret": config.SEED_SECRET,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`E2E_ABORT: Seed request failed: ${message}`);
+    process.exit(1);
+  }
+
+  if (response.status !== 200) {
+    const body = await response.text();
+    console.error(`E2E_ABORT: Seed failed [${response.status}]: ${body}`);
+    process.exit(1);
+  }
+
+  console.log("Seed OK — database reset.");
+}
+
+await seedDatabase();
 
 const runner = makeTestRunner();
 

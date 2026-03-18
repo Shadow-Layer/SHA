@@ -33,3 +33,14 @@ You can explore more about the framework in the [Next.js documentation](https://
 
 This app is deployed on [AWS Amplify](https://aws.amazon.com/amplify/) at:
 https://main.d3ppbkoectwrsc.amplifyapp.com
+
+## E2E Tests
+
+| Topic | Detail |
+|---|---|
+| Env source | Runtime environment variables only — no `.env.local` fallback |
+| Required vars | `SEED_SECRET` (must match the value set in Amplify Console); one runtime URL env: `BASE_URL` or `NEXTAUTH_URL` |
+| Auto-seed | Before any test case runs, the runner calls `POST /api/seed` with `x-seed-secret: $SEED_SECRET` to reset the database |
+| Fail-fast | If `SEED_SECRET` or both `BASE_URL` and `NEXTAUTH_URL` are missing, or seed returns non-200, the runner exits immediately with one error message |
+| Run locally | `SEED_SECRET=<value> BASE_URL=http://localhost:3000 npm run test:e2e` |
+| Run against Amplify | `SEED_SECRET=<value> npm run test:e2e:ci` |
