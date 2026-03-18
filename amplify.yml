@@ -15,8 +15,16 @@ frontend:
         - echo "=== AMPLIFY ENV CHECK END ==="
         - npm ci
     build:
+      # NOTE: These vars must also be set in Amplify Console -> App settings ->
+      # Environment variables so they are available to the SSR Lambda runtime.
+      # The env block below injects them into the Next.js build context (SSG paths).
       commands:
-        - env | grep -E '^(MONGODB_URI|NEXTAUTH_SECRET|NEXTAUTH_URL|SEED_SECRET|MEGA_EMAIL|MEGA_PASSWORD)=' > .env.production
+        - export MONGODB_URI=$MONGODB_URI
+        - export NEXTAUTH_SECRET=$NEXTAUTH_SECRET
+        - export NEXTAUTH_URL=$NEXTAUTH_URL
+        - export SEED_SECRET=$SEED_SECRET
+        - export MEGA_EMAIL=$MEGA_EMAIL
+        - export MEGA_PASSWORD=$MEGA_PASSWORD
         - npm run build
   artifacts:
     # Next.js default output folder for Amplify Hosting is .next

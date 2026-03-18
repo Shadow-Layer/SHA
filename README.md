@@ -34,6 +34,14 @@ You can explore more about the framework in the [Next.js documentation](https://
 This app is deployed on [AWS Amplify](https://aws.amazon.com/amplify/) at:
 https://main.d3ppbkoectwrsc.amplifyapp.com
 
+### Environment Variables
+
+All six variables, `MONGODB_URI`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `SEED_SECRET`, `MEGA_EMAIL`, and `MEGA_PASSWORD`, must be set in Amplify Console -> App settings -> Environment variables for the `main` branch. This is what the SSR Lambda reads at runtime.
+
+The `build` phase in `amplify.yml` explicitly exports each variable before running `npm run build`, so they are also embedded for any statically generated paths (SSG). This is handled by the `export VAR=$VAR` lines in `amplify.yml`.
+
+Secret values must never be committed to the repository; they live only in the Amplify Console configuration.
+
 ## E2E Tests
 
 | Topic | Detail |
