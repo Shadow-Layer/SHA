@@ -51,13 +51,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Area is required" }, { status: 400 });
   }
 
+  const occupancyOptions = Array.isArray(bodyObj.occupancyOptions)
+    ? bodyObj.occupancyOptions.flatMap((option) => {
+        if (typeof option !== "object" || option === null) {
+          return [];
+        }
+
+        const occupancyOption = option as Record<string, unknown>;
+
+        return [
+          {
+            type: occupancyOption.occupancyType ?? occupancyOption.type,
+            rentAmount: occupancyOption.rent ?? occupancyOption.rentAmount,
+            description: occupancyOption.description,
+          },
+        ];
+      })
+    : [];
+
   await connectDB();
   const listing = await Listing.create({
     landlordId: session.user.id,
     title: bodyObj.title,
     area: bodyObj.area,
     landmark: bodyObj.landmark || undefined,
-    occupancyOptions: bodyObj.occupancyOptions || [],
+    occupancyOptions,
     amenities: bodyObj.amenities || [],
     regulations: bodyObj.regulations || {},
     tenantPreferences: bodyObj.tenantPreferences || [],

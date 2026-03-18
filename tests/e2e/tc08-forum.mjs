@@ -3,10 +3,11 @@ import { apiGet, apiPost, assert, login, readState } from "./helpers.mjs";
 
 export async function run(runner) {
   let postId;
+  let studentJar;
   const { tenantEmail, password } = readState();
-  const studentJar = await login(config.BASE_URL, tenantEmail, password);
 
   await runner.run("TC8: Student creates forum post", async () => {
+    studentJar = await login(config.BASE_URL, tenantEmail, password);
     const response = await apiPost(
       config.BASE_URL,
       "/api/forum/posts",

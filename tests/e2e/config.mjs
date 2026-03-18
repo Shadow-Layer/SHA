@@ -18,6 +18,6 @@ for (const envFile of [defaultEnvFile, dedicatedE2eEnvFile, configuredEnvFile]) 
 const read = (key, fallback = "") => process.env[key] ?? fallback;
 
 export const config = Object.freeze({
-  BASE_URL: read("BASE_URL", read("NEXTAUTH_URL", "https://main.d1cuvfcb286qsc.amplifyapp.com")),
+  BASE_URL: read("BASE_URL", read("NEXTAUTH_URL", "https://main.d3ppbkoectwrsc.amplifyapp.com")),
   FORUM_CATEGORY: "general",
 });
