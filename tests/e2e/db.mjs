@@ -49,5 +49,15 @@ export async function publishListing(listingId) {
     throw new Error(`Listing not found for publishListing: ${listingId}`);
   }
 
+  if ("value" in result) {
+    if (result.value === null) {
+      throw new Error(`Listing not found for publishListing: ${listingId}`);
+    }
+
+    if (result.value !== undefined && typeof result.value === "object") {
+      return result.value;
+    }
+  }
+
   return result;
 }
