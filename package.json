@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:e2e": "node tests/e2e/runner.mjs",
-    "test:e2e:ci": "BASE_URL=https://main.d3ppbkoectwrsc.amplifyapp.com node tests/e2e/runner.mjs"
+    "test:e2e:ci": "BASE_URL=https://main.d1cuvfcb286qsc.amplifyapp.com node tests/e2e/runner.mjs"
   },
   "dependencies": {
     "@next-auth/mongodb-adapter": "^1.1.3",

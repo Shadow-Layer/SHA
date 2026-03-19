@@ -3,6 +3,7 @@ frontend:
   phases:
     preBuild:
       commands:
+        - nvm install 20 && nvm use 20
         - echo "=== AMPLIFY ENV CHECK START ==="
         - echo "AWS_BRANCH=$AWS_BRANCH"
         - echo "MONGODB_URI_SET=$([ -n "$MONGODB_URI" ] && echo yes || echo no)"
@@ -12,12 +13,10 @@ frontend:
         - echo "MEGA_PASSWORD_SET=$([ -n "$MEGA_PASSWORD" ] && echo yes || echo no)"
         - echo "SEED_SECRET_SET=$([ -n "$SEED_SECRET" ] && echo yes || echo no)"
         - echo "NEXT_PUBLIC_API_URL_SET=$([ -n "$NEXT_PUBLIC_API_URL" ] && echo yes || echo no)"
+        - env | grep -E '^(AWS_BRANCH|MONGODB_URI|NEXTAUTH_SECRET|NEXTAUTH_URL|SEED_SECRET|MEGA_EMAIL|MEGA_PASSWORD|NEXT_PUBLIC_API_URL)=' | sed 's/=.*$/=<set>/'
         - echo "=== AMPLIFY ENV CHECK END ==="
         - npm ci
     build:
-      # NOTE: These vars must also be set in Amplify Console -> App settings ->
-      # Environment variables so they are available to the SSR Lambda runtime.
-      # The explicit export lines below inject them into the Next.js build context (SSG paths).
       commands:
         - export MONGODB_URI=$MONGODB_URI
         - export NEXTAUTH_SECRET=$NEXTAUTH_SECRET
@@ -26,9 +25,16 @@ frontend:
         - export MEGA_EMAIL=$MEGA_EMAIL
         - export MEGA_PASSWORD=$MEGA_PASSWORD
         - npm run build
+        - rm -rf .amplify-hosting
+        - mkdir -p .amplify-hosting/compute/default/.next
+        - cp deploy-manifest.json .amplify-hosting/deploy-manifest.json
+        - cp amplify-entrypoint.cjs .amplify-hosting/compute/default/index.js
+        - cp -r .next/standalone/. .amplify-hosting/compute/default/
+        - cp -r .next/static .amplify-hosting/compute/default/.next/static
+        - if [ -d public ]; then cp -r public .amplify-hosting/compute/default/public; fi
+        - env | grep -E '^(MONGODB_URI|NEXTAUTH_SECRET|NEXTAUTH_URL|SEED_SECRET|MEGA_EMAIL|MEGA_PASSWORD|NEXT_PUBLIC_API_URL|NODE_ENV)=' > .amplify-hosting/compute/default/.env
   artifacts:
-    # Next.js default output folder for Amplify Hosting is .next
-    baseDirectory: .next
+    baseDirectory: .amplify-hosting
     files:
       - '**/*'
   cache:
