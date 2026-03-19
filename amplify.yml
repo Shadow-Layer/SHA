@@ -17,7 +17,7 @@ frontend:
     build:
       # NOTE: These vars must also be set in Amplify Console -> App settings ->
       # Environment variables so they are available to the SSR Lambda runtime.
-      # The env block below injects them into the Next.js build context (SSG paths).
+      # The explicit export lines below inject them into the Next.js build context (SSG paths).
       commands:
         - export MONGODB_URI=$MONGODB_URI
         - export NEXTAUTH_SECRET=$NEXTAUTH_SECRET

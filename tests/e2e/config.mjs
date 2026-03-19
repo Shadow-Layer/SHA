@@ -1,3 +1,8 @@
+import dotenv from "dotenv";
+
+dotenv.config({ path: ".env.local" });
+dotenv.config();
+
 const read = (key, fallback = "") => process.env[key] ?? fallback;
 
 export const config = Object.freeze({

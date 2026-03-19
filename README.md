@@ -40,6 +40,8 @@ All six variables, `MONGODB_URI`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `SEED_SECRE
 
 The `build` phase in `amplify.yml` explicitly exports each variable before running `npm run build`, so they are also embedded for any statically generated paths (SSG). This is handled by the `export VAR=$VAR` lines in `amplify.yml`.
 
+Both configuration paths are required: Amplify Console environment variables are mandatory for SSR runtime, and the `amplify.yml` `export VAR=$VAR` lines are mandatory for SSG/build-time context. Using only Amplify Console variables is insufficient for SSG, and using only `amplify.yml` exports is insufficient for SSR.
+
 Secret values must never be committed to the repository; they live only in the Amplify Console configuration.
 
 ## E2E Tests
