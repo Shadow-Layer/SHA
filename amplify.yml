@@ -18,30 +18,15 @@ frontend:
         - npm ci
     build:
       commands:
-        - export MONGODB_URI=$MONGODB_URI
-        - export NEXTAUTH_SECRET=$NEXTAUTH_SECRET
-        - export NEXTAUTH_URL=$NEXTAUTH_URL
-        - export SEED_SECRET=$SEED_SECRET
-        - export MEGA_EMAIL=$MEGA_EMAIL
-        - export MEGA_PASSWORD=$MEGA_PASSWORD
+        - rm -f .env.production
+        - env | grep -E '^(MONGODB_URI|NEXTAUTH_SECRET|NEXTAUTH_URL|SEED_SECRET|MEGA_EMAIL|MEGA_PASSWORD)=' >> .env.production
+        - env | grep -E '^(NEXT_PUBLIC_)' >> .env.production || true
+        - echo "=== .env.production KEYS ==="
+        - sed 's/=.*$/=<set>/' .env.production
+        - echo "=== END .env.production KEYS ==="
         - npm run build
-        - rm -rf .amplify-hosting
-        - mkdir -p .amplify-hosting/compute/default/.next
-        - cp deploy-manifest.json .amplify-hosting/deploy-manifest.json
-        - cp amplify-entrypoint.cjs .amplify-hosting/compute/default/index.js
-        - cp -r .next/standalone/. .amplify-hosting/compute/default/
-        - cp -r .next/static .amplify-hosting/compute/default/.next/static
-        - mkdir -p .amplify-hosting/.next
-        - mkdir -p .amplify-hosting/.next/server
-        - cp .next/required-server-files.json .amplify-hosting/required-server-files.json
-        - cp .next/required-server-files.json .amplify-hosting/.next/required-server-files.json
-        - cp .next/required-server-files.json .amplify-hosting/compute/default/required-server-files.json
-        - find .next -maxdepth 1 -name '*.nft.json' -exec cp {} .amplify-hosting/.next/ \;
-        - if [ -d .next/server ]; then cp -r .next/server/. .amplify-hosting/.next/server/; fi
-        - if [ -d public ]; then cp -r public .amplify-hosting/compute/default/public; fi
-        - env | grep -E '^(MONGODB_URI|NEXTAUTH_SECRET|NEXTAUTH_URL|SEED_SECRET|MEGA_EMAIL|MEGA_PASSWORD|NEXT_PUBLIC_API_URL|NODE_ENV)=' > .amplify-hosting/compute/default/.env
   artifacts:
-    baseDirectory: .amplify-hosting
+    baseDirectory: .next
     files:
       - '**/*'
   cache:
