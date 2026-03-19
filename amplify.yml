@@ -31,6 +31,10 @@ frontend:
         - cp amplify-entrypoint.cjs .amplify-hosting/compute/default/index.js
         - cp -r .next/standalone/. .amplify-hosting/compute/default/
         - cp -r .next/static .amplify-hosting/compute/default/.next/static
+        - mkdir -p .amplify-hosting/.next
+        - cp .next/required-server-files.json .amplify-hosting/required-server-files.json
+        - cp .next/required-server-files.json .amplify-hosting/.next/required-server-files.json
+        - cp .next/required-server-files.json .amplify-hosting/compute/default/required-server-files.json
         - if [ -d public ]; then cp -r public .amplify-hosting/compute/default/public; fi
         - env | grep -E '^(MONGODB_URI|NEXTAUTH_SECRET|NEXTAUTH_URL|SEED_SECRET|MEGA_EMAIL|MEGA_PASSWORD|NEXT_PUBLIC_API_URL|NODE_ENV)=' > .amplify-hosting/compute/default/.env
   artifacts:
