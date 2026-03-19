@@ -77,7 +77,12 @@ export async function POST(request: NextRequest) {
     landmark: bodyObj.landmark || undefined,
     occupancyOptions,
     amenities: bodyObj.amenities || [],
-    regulations: bodyObj.regulations || {},
+    regulations:
+      bodyObj.regulations !== null &&
+      typeof bodyObj.regulations === "object" &&
+      !Array.isArray(bodyObj.regulations)
+        ? bodyObj.regulations
+        : {},
     tenantPreferences: bodyObj.tenantPreferences || [],
     photos: bodyObj.photos || [],
     status: "pending_review",

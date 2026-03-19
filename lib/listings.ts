@@ -22,6 +22,10 @@ export type ListingCardData = {
   id: string;
   title: string;
   area: string;
+  occupancyOptions: {
+    occupancyType: string;
+    rent: number | null;
+  }[];
   amenities: string[];
   photoUrl: string | null;
   verificationLevel: "landlord_confirmed" | "student_verified";
@@ -200,6 +204,10 @@ function normalizeListing(doc: Record<string, unknown>): ListingCardData {
   const occupancyOptions = Array.isArray(doc.occupancyOptions)
     ? (doc.occupancyOptions as Array<Record<string, unknown>>)
     : [];
+  const normalizedOccupancyOptions = occupancyOptions.map((option) => ({
+    occupancyType: typeof option.type === "string" ? option.type : "custom",
+    rent: typeof option.rentAmount === "number" ? option.rentAmount : null,
+  }));
   const rentAmounts = occupancyOptions
     .map((option) => option.rentAmount)
     .filter((value): value is number => typeof value === "number");
@@ -218,6 +226,7 @@ function normalizeListing(doc: Record<string, unknown>): ListingCardData {
     id: String(doc._id),
     title: typeof doc.title === "string" ? doc.title : "Untitled listing",
     area: typeof doc.area === "string" ? doc.area : "Unknown area",
+    occupancyOptions: normalizedOccupancyOptions,
     amenities,
     photoUrl: photos[0] ?? null,
     verificationLevel:
