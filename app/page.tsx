@@ -16,6 +16,33 @@ export default function Home() {
           SHA helps students discover safer, verified rentals without relying on hidden fees or
           word-of-mouth guesswork.
         </p>
+        <div className="mt-8 border-t pt-8">
+          <h2 className="text-xl font-bold">Help Stop Student Housing Scams</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            Every semester, students lose money to fake listings, dishonest agents, and misleading
+            information. Finding accommodation shouldn&apos;t be risky, stressful, or expensive.
+          </p>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            Student Housing Archive (SHA) exists to change that.
+          </p>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            We&apos;re building a community-powered platform where students share real housing
+            information, verify listings, and protect each other from scams. Instead of relying on
+            guesswork or word-of-mouth, we create a trusted space built on transparency and shared
+            experience.
+          </p>
+          <p className="mt-4 text-sm font-semibold">
+            Your contribution matters. By submitting a housing lead, you help:
+          </p>
+          <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-muted-foreground">
+            <li>Expose fake or suspicious listings</li>
+            <li>Highlight genuine, safe accommodation</li>
+            <li>Save fellow students from losing money</li>
+          </ul>
+          <p className="mt-4 text-sm text-muted-foreground">
+            👉 Know a place? Share it below and be part of the solution.
+          </p>
+        </div>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button size="lg" asChild>
             <Link href="/listings">Find Housing</Link>
