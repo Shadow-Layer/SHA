@@ -39,9 +39,12 @@ export default function Home() {
             <li>Highlight genuine, safe accommodation</li>
             <li>Save fellow students from losing money</li>
           </ul>
-          <p className="mt-4 text-sm text-muted-foreground">
+          <Link
+            href="/submit-lead"
+            className="mt-4 block text-sm text-muted-foreground underline underline-offset-4"
+          >
             👉 Know a place? Share it below and be part of the solution.
-          </p>
+          </Link>
         </div>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button size="lg" asChild>

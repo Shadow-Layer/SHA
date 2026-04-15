@@ -26,6 +26,9 @@ export default async function AdminPage() {
         <Button variant="outline" asChild>
           <Link href="/admin/reports">Manage Reports</Link>
         </Button>
+        <Button variant="outline" asChild>
+          <Link href="/admin/leads">View Leads</Link>
+        </Button>
       </div>
     </main>
   );
