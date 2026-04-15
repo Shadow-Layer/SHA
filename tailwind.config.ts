@@ -51,6 +51,10 @@ const config: Config = {
   				'5': 'hsl(var(--chart-5))'
   			}
   		},
+  		gridTemplateRows: {
+  			"0fr": "0fr",
+  			"1fr": "1fr"
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',

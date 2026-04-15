@@ -35,7 +35,10 @@ function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
     ];
   }
 
-  return [{ label: "Listings", href: "/listings" }];
+  return [
+    { label: "Listings", href: "/listings" },
+    { label: "Share a Lead", href: "/submit-lead" },
+  ];
 }
 
 export default async function Navbar() {
