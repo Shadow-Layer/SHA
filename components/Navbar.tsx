@@ -14,6 +14,7 @@ function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
   if (role === "student") {
     return [
       { label: "Listings", href: "/listings" },
+      { label: "Services", href: "/services" },
       { label: "Forum", href: "/forum" },
       { label: "Inbox", href: "/inbox" },
       { label: "Dashboard", href: "/dashboard/student" },
@@ -23,6 +24,7 @@ function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
   if (role === "landlord") {
     return [
       { label: "Listings", href: "/listings" },
+      { label: "Services", href: "/services" },
       { label: "Inbox", href: "/inbox" },
       { label: "Dashboard", href: "/dashboard/landlord" },
     ];
@@ -30,6 +32,7 @@ function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
 
   if (role === "admin") {
     return [
+      { label: "Services", href: "/services" },
       { label: "Dashboard", href: "/dashboard" },
       { label: "Admin Panel", href: "/admin" },
     ];
@@ -37,6 +40,7 @@ function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
 
   return [
     { label: "Listings", href: "/listings" },
+    { label: "Services", href: "/services" },
     { label: "Share a Lead", href: "/submit-lead" },
   ];
 }

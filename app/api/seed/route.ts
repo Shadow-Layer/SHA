@@ -13,6 +13,7 @@ import Message from "@/lib/models/Message";
 import ForumPost from "@/lib/models/ForumPost";
 import ForumComment from "@/lib/models/ForumComment";
 import Notification from "@/lib/models/Notification";
+import ServiceProvider from "@/lib/models/ServiceProvider";
 
 type SeededForumPost = {
   _id: Types.ObjectId;
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
   await ForumComment.deleteMany({});
   await ForumPost.deleteMany({});
   await Listing.deleteMany({});
+  await ServiceProvider.deleteMany({});
   await User.deleteMany({});
 
   // create some users
@@ -161,6 +163,57 @@ export async function POST(request: NextRequest) {
     confirmationCount: 0,
     suspiciousCount: 0,
   });
+
+  const serviceProviders = await ServiceProvider.create([
+    {
+      businessName: "Mutare Fast Movers",
+      contactName: "Tendai Moyo",
+      phone: "0771234567",
+      preferredContact: "whatsapp",
+      category: "moving",
+      description: "Affordable student moving services across Mutare",
+      areasServed: "Greenside, Chikanga, CBD",
+      availability: "always",
+      priceRange: "$10-$30",
+      targetCustomers: "students",
+      photos: [],
+      status: "published",
+      consentGiven: true,
+      source: "admin_created",
+    },
+    {
+      businessName: "ConnectEase WiFi",
+      contactName: "Rudo Chikwanda",
+      phone: "0782345678",
+      preferredContact: "whatsapp",
+      category: "wifi_internet",
+      description: "WiFi installation and monthly packages for student houses",
+      areasServed: "Mutare CBD, Yeovil, Fairbridge",
+      availability: "weekdays",
+      priceRange: "From $10/month",
+      targetCustomers: "both",
+      photos: [],
+      status: "published",
+      consentGiven: true,
+      source: "admin_created",
+    },
+    {
+      businessName: "Sparkle Clean",
+      contactName: "Mercy Dube",
+      phone: "0793456789",
+      preferredContact: "call",
+      category: "cleaning",
+      description: "Professional cleaning for student rooms and houses",
+      areasServed: "All Mutare areas",
+      availability: "on_request",
+      priceRange: "$8-$25",
+      targetCustomers: "both",
+      photos: [],
+      status: "published",
+      consentGiven: true,
+      source: "admin_created",
+    },
+  ]);
 
   // verification events
   await VerificationEvent.create([
@@ -357,5 +410,6 @@ export async function POST(request: NextRequest) {
     forumPosts: 6,
     forumComments: housesPost ? 1 : 0,
     notifications: 5,
+    serviceProviders: serviceProviders.length,
   });
 }

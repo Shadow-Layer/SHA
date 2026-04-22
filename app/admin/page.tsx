@@ -35,6 +35,9 @@ export default async function AdminPage() {
         <Button variant="outline" asChild>
           <Link href="/admin/imported-leads">Imported Leads Workspace</Link>
         </Button>
+        <Button variant="outline" asChild>
+          <Link href="/admin/service-providers">Service Providers</Link>
+        </Button>
       </div>
     </main>
   );
