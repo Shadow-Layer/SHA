@@ -54,6 +54,9 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           role: user.role,
           isVerifiedStudent: user.isVerifiedStudent,
+          isInvited: user.isInvited,
+          onboardingCompleted: user.onboardingCompleted,
+          source: user.source,
         };
       },
     }),
@@ -64,6 +67,9 @@ export const authOptions: NextAuthOptions = {
         token.userId = user.id;
         token.role = user.role;
         token.isVerifiedStudent = Boolean(user.isVerifiedStudent);
+        token.isInvited = Boolean(user.isInvited);
+        token.onboardingCompleted = Boolean(user.onboardingCompleted);
+        token.source = typeof user.source === "string" ? user.source : undefined;
       }
 
       return token;
@@ -73,6 +79,9 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.userId;
         session.user.role = token.role;
         session.user.isVerifiedStudent = Boolean(token.isVerifiedStudent);
+        session.user.isInvited = Boolean(token.isInvited);
+        session.user.onboardingCompleted = Boolean(token.onboardingCompleted);
+        session.user.source = token.source;
       }
 
       return session;

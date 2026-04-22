@@ -43,8 +43,19 @@ export async function GET(request: NextRequest) {
         status: listing.status,
         landlordName: landlord?.name || landlord?.email || "Landlord",
         submittedAt:
-          listing.createdAt instanceof Date ? listing.createdAt.toISOString() : new Date().toISOString(),
+          listing.completedAt instanceof Date
+            ? listing.completedAt.toISOString()
+            : listing.createdAt instanceof Date
+              ? listing.createdAt.toISOString()
+              : new Date().toISOString(),
+        source:
+          listing.source === "pdf_import" ||
+          listing.source === "landlord_created" ||
+          listing.source === "admin_created"
+            ? listing.source
+            : "landlord_created",
         photoCount: Array.isArray(listing.photos) ? listing.photos.length : 0,
+        landlordConsentConfirmed: Boolean(listing.landlordConsentConfirmed),
       };
     }),
   });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 
+import { publishInboxEvent } from "@/lib/ably";
 import { getAuthSession } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
 import Conversation from "@/lib/models/Conversation";
@@ -45,6 +46,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       conversationId: String(message.conversationId),
       senderId: String(message.senderId),
       body: message.body,
+      readAt: message.readAt instanceof Date ? message.readAt.toISOString() : null,
       createdAt:
         message.createdAt instanceof Date ? message.createdAt.toISOString() : new Date().toISOString(),
     })),
@@ -83,6 +85,19 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     senderId: session.user.id,
     body,
   });
+  const createdAt =
+    message.createdAt instanceof Date ? message.createdAt.toISOString() : new Date().toISOString();
+
+  try {
+    await publishInboxEvent(params.id, "message:new", {
+      id: String(message._id),
+      senderId: String(message.senderId),
+      body: message.body,
+      createdAt,
+    });
+  } catch (error) {
+    console.error("Failed to publish Ably message", error);
+  }
 
   return NextResponse.json(
     {
@@ -90,8 +105,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       conversationId: String(message.conversationId),
       senderId: String(message.senderId),
       body: message.body,
-      createdAt:
-        message.createdAt instanceof Date ? message.createdAt.toISOString() : new Date().toISOString(),
+      readAt: message.readAt instanceof Date ? message.readAt.toISOString() : null,
+      createdAt,
     },
     { status: 201 },
   );

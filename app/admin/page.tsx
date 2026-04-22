@@ -29,6 +29,12 @@ export default async function AdminPage() {
         <Button variant="outline" asChild>
           <Link href="/admin/leads">View Leads</Link>
         </Button>
+        <Button variant="outline" asChild>
+          <Link href="/admin/import">Import PDF Rows</Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/admin/imported-leads">Imported Leads Workspace</Link>
+        </Button>
       </div>
     </main>
   );

@@ -9,7 +9,7 @@ type ListingWizardProps = {
   userId: string;
 };
 
-type OccupancyType =
+export type OccupancyType =
   | "per_room"
   | "per_head_double"
   | "per_head_triple_plus"
@@ -35,7 +35,7 @@ type WizardState = {
   photos: string[];
 };
 
-const AMENITIES: { id: string; label: string }[] = [
+export const AMENITIES: { id: string; label: string }[] = [
   { id: 'wifi', label: 'WiFi' },
   { id: 'borehole', label: 'Borehole' },
   { id: 'prepaid_zesa', label: 'Prepaid ZESA' },
@@ -85,7 +85,7 @@ const EMPTY_STATE: WizardState = {
   photos: [],
 };
 
-const OCCUPANCY_LABELS: Record<OccupancyType, string> = {
+export const OCCUPANCY_LABELS: Record<OccupancyType, string> = {
   per_room: "Per Room",
   per_head_double: "Per Head (Double)",
   per_head_triple_plus: "Per Head (3+)",

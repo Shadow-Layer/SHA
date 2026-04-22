@@ -66,13 +66,25 @@ export default async function InboxPage() {
       studentName: userMap.get(String(c.studentId))?.name || "",
       landlordName: userMap.get(String(c.landlordId))?.name || "",
       lastMessage: lastMessage?.body || "",
-      lastMessageAt: lastMessage?.createdAt || c.createdAt,
+      lastMessageAt:
+        lastMessage?.createdAt instanceof Date
+          ? lastMessage.createdAt.toISOString()
+          : c.createdAt instanceof Date
+            ? c.createdAt.toISOString()
+            : new Date().toISOString(),
     };
   });
 
   conversations.sort((a, b) => +new Date(b.lastMessageAt) - +new Date(a.lastMessageAt));
 
-  let initialMessages: Array<{ id: string; conversationId: string; senderId: string; body: string; createdAt: string }> = [];
+  let initialMessages: Array<{
+    id: string;
+    conversationId: string;
+    senderId: string;
+    body: string;
+    createdAt: string;
+    readAt: string | null;
+  }> = [];
   if (conversations.length > 0) {
     const rawMessages = await Message.find({ conversationId: conversations[0].id })
       .sort({ createdAt: 1 })
@@ -83,6 +95,7 @@ export default async function InboxPage() {
       conversationId: String(m.conversationId),
       senderId: String(m.senderId),
       body: m.body,
+      readAt: m.readAt instanceof Date ? m.readAt.toISOString() : null,
       createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : String(m.createdAt),
     }));
   }

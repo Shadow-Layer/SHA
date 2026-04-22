@@ -13,6 +13,7 @@ const MessageSchema = new Schema(
       required: true,
     },
     body: { type: String, required: true },
+    readAt: { type: Date, default: null },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );

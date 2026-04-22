@@ -44,6 +44,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
   if (action === "approve") {
     listing.status = "published";
+    listing.publiclyVisible = true;
     listing.verificationLevel = "landlord_confirmed";
     await listing.save();
 
@@ -59,6 +60,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   listing.status = "removed";
+  listing.publiclyVisible = false;
   await listing.save();
 
   await Notification.create({

@@ -7,11 +7,11 @@ import Application from "@/lib/models/Application";
 import Listing from "@/lib/models/Listing";
 import User from "@/lib/models/User";
 import ApplicationActions from "@/components/dashboard/ApplicationActions";
+import DismissibleBanner from "@/components/dashboard/DismissibleBanner";
 import { Button } from "@/components/ui/button";
 
 type LandlordDashboardPageProps = {
-  params: Record<string, unknown>;
-  searchParams: { created?: string };
+  searchParams: { created?: string; onboarded?: string };
 };
 
 export default async function LandlordDashboardPage({ searchParams }: LandlordDashboardPageProps) {
@@ -24,8 +24,17 @@ export default async function LandlordDashboardPage({ searchParams }: LandlordDa
   }
 
   const showCreatedBanner = searchParams.created === "1";
+  const showOnboardedBanner = searchParams.onboarded === "1";
+  const onboardedBannerMessage =
+    "Your listing has been submitted for review. We'll notify you once it's approved.";
 
   await connectDB();
+  const landlord = await User.findById(session.user.id)
+    .select({ onboardingCompleted: 1 })
+    .lean()
+    .exec();
+  const onboardingCompleted = landlord?.onboardingCompleted === true;
+
   const listings = await Listing.find({ landlordId: session.user.id })
     .sort({ createdAt: -1 })
     .lean()
@@ -50,10 +59,41 @@ export default async function LandlordDashboardPage({ searchParams }: LandlordDa
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10">
       <h1 className="text-2xl font-semibold">Landlord Dashboard</h1>
+      {showOnboardedBanner ? (
+        <section aria-live="polite">
+          <DismissibleBanner message={onboardedBannerMessage} />
+        </section>
+      ) : null}
       {showCreatedBanner ? (
         <p className="mt-3 rounded-md border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900">
           Your listing is under review. We&apos;ll notify you when it goes live.
         </p>
+      ) : null}
+      {!onboardingCompleted ? (
+        <section className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-amber-950">Complete Your Listing</h2>
+              <p className="mt-2 text-sm text-amber-900">
+                Your listing is not yet visible to students.
+              </p>
+              <ul className="mt-4 space-y-2 text-sm text-amber-950">
+                <li>✅ Account created</li>
+                <li>✅ Password set</li>
+                <li>⬜ Review property details</li>
+                <li>⬜ Add rent options</li>
+                <li>⬜ Upload photos</li>
+                <li>⬜ Confirm consent</li>
+                <li>⬜ Submit for review</li>
+              </ul>
+            </div>
+            <div className="shrink-0">
+              <Button asChild>
+                <Link href="/onboarding/landlord">Continue Setup →</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
       ) : null}
 
       <section className="mt-6">

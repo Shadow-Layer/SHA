@@ -22,6 +22,8 @@ export type ListingCardData = {
   id: string;
   title: string;
   area: string;
+  lat: number | null;
+  lng: number | null;
   occupancyOptions: {
     occupancyType: string;
     rent: number | null;
@@ -68,12 +70,21 @@ export type ListingDetail = {
   title: string;
   area: string;
   landmark: string | null;
+  lat: number | null;
+  lng: number | null;
   occupancyOptions: ListingOccupancyOption[];
   amenities: string[];
   regulations: ListingRegulations;
   tenantPreferences: string[];
   photos: string[];
-  status: "pending_review" | "published" | "warning" | "removed";
+  status:
+    | "pending_review"
+    | "published"
+    | "warning"
+    | "removed"
+    | "imported_draft"
+    | "awaiting_landlord_claim"
+    | "awaiting_landlord_completion";
   verificationLevel: "landlord_confirmed" | "student_verified";
   confirmationCount: number;
   suspiciousCount: number;
@@ -163,6 +174,7 @@ export function parseListingsSearchParams(searchParams: ListingSearchParams): {
 function buildQuery(filters: ListingFilters): Record<string, unknown> {
   const query: Record<string, unknown> = {
     status: "published",
+    publiclyVisible: true,
   };
 
   if (filters.area) {
@@ -216,6 +228,8 @@ function normalizeListing(doc: Record<string, unknown>): ListingCardData {
   const confirmationCount =
     typeof doc.confirmationCount === "number" ? doc.confirmationCount : 0;
   const suspiciousCount = typeof doc.suspiciousCount === "number" ? doc.suspiciousCount : 0;
+  const lat = typeof doc.lat === "number" ? doc.lat : null;
+  const lng = typeof doc.lng === "number" ? doc.lng : null;
   const reviewCount = confirmationCount + suspiciousCount;
   const starRating = reviewCount === 0 ? 0 : Number(((confirmationCount / reviewCount) * 5).toFixed(1));
 
@@ -226,6 +240,8 @@ function normalizeListing(doc: Record<string, unknown>): ListingCardData {
     id: String(doc._id),
     title: typeof doc.title === "string" ? doc.title : "Untitled listing",
     area: typeof doc.area === "string" ? doc.area : "Unknown area",
+    lat,
+    lng,
     occupancyOptions: normalizedOccupancyOptions,
     amenities,
     photoUrl: photos[0] ?? null,
@@ -282,7 +298,8 @@ export async function getListingById(
       ? { _id: listingId }
       : {
           _id: listingId,
-          status: { $in: ["published", "warning"] },
+          status: "published",
+          publiclyVisible: true,
         },
   )
     .lean()
@@ -310,6 +327,8 @@ export async function getListingById(
     title: typeof doc.title === "string" ? doc.title : "Untitled listing",
     area: typeof doc.area === "string" ? doc.area : "Unknown area",
     landmark: typeof doc.landmark === "string" ? doc.landmark : null,
+    lat: typeof doc.lat === "number" ? doc.lat : null,
+    lng: typeof doc.lng === "number" ? doc.lng : null,
     occupancyOptions: occupancyOptions.map((option) => ({
       type: typeof option.type === "string" ? option.type : "custom",
       rentAmount: typeof option.rentAmount === "number" ? option.rentAmount : null,
@@ -320,7 +339,12 @@ export async function getListingById(
     tenantPreferences,
     photos,
     status:
-      doc.status === "warning" || doc.status === "pending_review" || doc.status === "removed"
+      doc.status === "warning" ||
+      doc.status === "pending_review" ||
+      doc.status === "removed" ||
+      doc.status === "imported_draft" ||
+      doc.status === "awaiting_landlord_claim" ||
+      doc.status === "awaiting_landlord_completion"
         ? doc.status
         : "published",
     verificationLevel:

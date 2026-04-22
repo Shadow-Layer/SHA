@@ -6,12 +6,18 @@ declare module "next-auth" {
       id: string;
       role: "student" | "landlord" | "admin";
       isVerifiedStudent: boolean;
+      isInvited?: boolean;
+      onboardingCompleted?: boolean;
+      source?: string;
     } & DefaultSession["user"];
   }
 
   interface User {
     role: "student" | "landlord" | "admin";
     isVerifiedStudent: boolean;
+    isInvited?: boolean;
+    onboardingCompleted?: boolean;
+    source?: string;
   }
 }
 
@@ -20,5 +26,8 @@ declare module "next-auth/jwt" {
     userId: string;
     role: "student" | "landlord" | "admin";
     isVerifiedStudent: boolean;
+    isInvited?: boolean;
+    onboardingCompleted?: boolean;
+    source?: string;
   }
 }

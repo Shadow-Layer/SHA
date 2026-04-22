@@ -1,3 +1,4 @@
+import dynamic from "next/dynamic";
 import { notFound } from "next/navigation";
 
 import ApplyPanel from "@/components/listings/ApplyPanel";
@@ -10,6 +11,8 @@ import type { ListingRegulations } from "@/lib/listings";
 import { getListingById } from "@/lib/listings";
 import Application from "@/lib/models/Application";
 import VerificationEvent from "@/lib/models/VerificationEvent";
+
+const ListingMap = dynamic(() => import("@/components/listings/ListingMap"), { ssr: false });
 
 const OCCUPANCY_LABELS: Record<string, string> = {
   per_head_double: "Per head (double)",
@@ -217,6 +220,17 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
           )}
         </div>
       </section>
+
+      {listing.lat !== null && listing.lng !== null && (
+        <section className="mt-6">
+          <ListingMap
+            lat={listing.lat}
+            lng={listing.lng}
+            title={listing.title}
+            area={listing.area}
+          />
+        </section>
+      )}
 
       <section className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
         <div className="space-y-6">

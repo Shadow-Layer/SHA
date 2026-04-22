@@ -1,46 +1,13 @@
-import Link from "next/link";
-
-import FilterBar from "@/components/listings/FilterBar";
-import { Button } from "@/components/ui/button";
+import BrowseListingsClient from "@/components/listings/BrowseListingsClient";
 import { getPublishedListings, parseListingsSearchParams } from "@/lib/listings";
 
 type ListingsPageProps = {
   searchParams: Record<string, string | string[] | undefined>;
 };
 
-function buildPageHref(
-  searchParams: Record<string, string | string[] | undefined>,
-  page: number,
-): string {
-  const params = new URLSearchParams();
-
-  Object.entries(searchParams).forEach(([key, value]) => {
-    if (key === "page" || typeof value === "undefined") {
-      return;
-    }
-
-    if (Array.isArray(value)) {
-      value.forEach((item) => {
-        params.append(key, item);
-      });
-      return;
-    }
-
-    params.set(key, value);
-  });
-
-  if (page > 1) {
-    params.set("page", String(page));
-  }
-
-  const query = params.toString();
-  return query ? `/listings?${query}` : "/listings";
-}
-
 export default async function ListingsPage({ searchParams }: ListingsPageProps) {
   const { filters, options } = parseListingsSearchParams(searchParams);
   const result = await getPublishedListings(filters, options);
-  const hasListings = result.listings.length > 0;
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
@@ -50,119 +17,12 @@ export default async function ListingsPage({ searchParams }: ListingsPageProps) 
           Explore published student housing listings with transparent pricing.
         </p>
       </header>
-
-      <section className="mt-6">
-        <FilterBar
-          initialArea={filters.area}
-          initialMinRent={filters.minRent}
-          initialMaxRent={filters.maxRent}
-          initialOccupancyType={filters.occupancyType}
-          initialAmenity={filters.amenities?.[0]}
-        />
-      </section>
-
-      {!hasListings ? (
-        <section className="mt-8 rounded-xl border bg-card p-8 text-center shadow-sm">
-          <h2 className="text-2xl font-semibold">No published listings yet</h2>
-          <p className="mt-2 text-muted-foreground">
-            Help grow SHA by sharing trusted student housing options.
-          </p>
-          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            <Button variant="outline" asChild>
-              <Link href="/auth/register?role=student">Know a place? Submit a lead</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/auth/register?role=landlord">
-                Are you a landlord? List your property
-              </Link>
-            </Button>
-          </div>
-        </section>
-      ) : (
-        <>
-          <section className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {result.listings.map((listing) => (
-              <article
-                key={listing.id}
-                className="overflow-hidden rounded-xl border bg-card shadow-sm"
-              >
-                <Link href={`/listings/${listing.id}`} className="block">
-                  <div className="relative h-48 w-full bg-muted">
-                    {listing.photoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={listing.photoUrl}
-                        alt={listing.title}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                        No photo available
-                      </div>
-                    )}
-                    <span className="absolute left-3 top-3 rounded-full bg-background px-2 py-1 text-xs font-medium shadow-sm">
-                      {listing.verificationLevel === "student_verified"
-                        ? "Student Verified"
-                        : "Landlord Confirmed"}
-                    </span>
-                  </div>
-                </Link>
-
-                <div className="space-y-2 p-4">
-                  <h2 className="text-lg font-semibold">
-                    <Link href={`/listings/${listing.id}`}>{listing.title}</Link>
-                  </h2>
-                  <p className="text-sm text-muted-foreground">{listing.area}</p>
-                  <p className="text-sm">
-                    {listing.minRent !== null ? (
-                      <>
-                        <span className="font-medium">${listing.minRent}</span>/month
-                      </>
-                    ) : (
-                      "Rent available on request"
-                    )}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    ★ {listing.starRating.toFixed(1)} ({listing.reviewCount})
-                  </p>
-                </div>
-              </article>
-            ))}
-          </section>
-
-          <section className="mt-8 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Page {result.pagination.page} of {result.pagination.totalPages} ·{" "}
-              {result.pagination.total} listing
-              {result.pagination.total === 1 ? "" : "s"}
-            </p>
-            <div className="flex gap-2">
-              {result.pagination.page > 1 ? (
-                <Button variant="outline" asChild>
-                  <Link href={buildPageHref(searchParams, result.pagination.page - 1)}>
-                    Previous
-                  </Link>
-                </Button>
-              ) : (
-                <Button variant="outline" disabled>
-                  Previous
-                </Button>
-              )}
-              {result.pagination.page < result.pagination.totalPages ? (
-                <Button variant="outline" asChild>
-                  <Link href={buildPageHref(searchParams, result.pagination.page + 1)}>
-                    Next
-                  </Link>
-                </Button>
-              ) : (
-                <Button variant="outline" disabled>
-                  Next
-                </Button>
-              )}
-            </div>
-          </section>
-        </>
-      )}
+      <BrowseListingsClient
+        listings={result.listings}
+        pagination={result.pagination}
+        searchParams={searchParams}
+        filters={filters}
+      />
     </main>
   );
 }

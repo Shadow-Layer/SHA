@@ -15,7 +15,9 @@ type ListingRow = {
   status: ListingStatus;
   landlordName: string;
   submittedAt: string;
+  source: "pdf_import" | "landlord_created" | "admin_created";
   photoCount: number;
+  landlordConsentConfirmed: boolean;
 };
 
 const STATUS_TABS: Array<{ label: string; value: ListingStatus }> = [
@@ -114,14 +116,16 @@ export default function AdminListingsClient() {
       {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
 
       <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="w-full min-w-[980px] text-sm">
           <thead>
             <tr className="border-b text-left text-muted-foreground">
               <th className="py-2 pr-4">Listing</th>
               <th className="py-2 pr-4">Area</th>
               <th className="py-2 pr-4">Landlord</th>
               <th className="py-2 pr-4">Submitted</th>
+              <th className="py-2 pr-4">Source</th>
               <th className="py-2 pr-4">Photos</th>
+              <th className="py-2 pr-4">Consent</th>
               <th className="py-2 pr-4">Actions</th>
             </tr>
           </thead>
@@ -136,7 +140,31 @@ export default function AdminListingsClient() {
                 <td className="py-3 pr-4">{row.area}</td>
                 <td className="py-3 pr-4">{row.landlordName}</td>
                 <td className="py-3 pr-4">{formatDate(row.submittedAt)}</td>
-                <td className="py-3 pr-4">{row.photoCount}</td>
+                <td className="py-3 pr-4">
+                  <span
+                    className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                      row.source === "pdf_import"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {row.source === "pdf_import" ? "PDF Import" : "Self-registered"}
+                  </span>
+                </td>
+                <td className="py-3 pr-4">
+                  {row.photoCount === 0 ? (
+                    <span className="font-medium text-amber-700">⚠️ None</span>
+                  ) : (
+                    <span>{row.photoCount}</span>
+                  )}
+                </td>
+                <td className="py-3 pr-4">
+                  {row.landlordConsentConfirmed ? (
+                    <span className="font-medium text-green-700">✅ Confirmed</span>
+                  ) : (
+                    <span className="font-medium text-amber-700">⚠️ Missing</span>
+                  )}
+                </td>
                 <td className="py-3 pr-4">
                   {status === "pending_review" ? (
                     <div className="flex gap-2">

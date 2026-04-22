@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPublishedListings, parseListingsSearchParams } from "@/lib/listings";
 import { getAuthSession } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
+import { geocode } from "@/lib/geocode";
 import Listing from "@/lib/models/Listing";
 
 export async function GET(request: NextRequest) {
@@ -51,6 +52,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Area is required" }, { status: 400 });
   }
 
+  const coords = await geocode({
+    area: bodyObj.area as string,
+    landmark: bodyObj.landmark as string | undefined,
+  });
+
   const occupancyOptions = Array.isArray(bodyObj.occupancyOptions)
     ? bodyObj.occupancyOptions.flatMap((option) => {
         if (typeof option !== "object" || option === null) {
@@ -75,6 +81,8 @@ export async function POST(request: NextRequest) {
     title: bodyObj.title,
     area: bodyObj.area,
     landmark: bodyObj.landmark || undefined,
+    lat: coords?.lat ?? null,
+    lng: coords?.lng ?? null,
     occupancyOptions,
     amenities: bodyObj.amenities || [],
     regulations:
