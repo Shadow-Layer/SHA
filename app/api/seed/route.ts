@@ -28,6 +28,7 @@ type SeededForumPost = {
 export async function POST(request: NextRequest) {
   const provided = request.headers.get("x-seed-secret");
   const expected = process.env.SEED_SECRET;
+  const seedPassword = "password";
 
   if (!expected || provided !== expected) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -47,9 +48,8 @@ export async function POST(request: NextRequest) {
   await User.deleteMany({});
 
   // create some users
-  const commonPassword = await bcrypt.hash("password", 10);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _admin = await User.create({
+  const commonPassword = await bcrypt.hash(seedPassword, 10);
+  const admin = await User.create({
     name: "Admin User",
     username: "admin",
     email: "admin@example.com",
@@ -342,6 +342,12 @@ export async function POST(request: NextRequest) {
   ]);
 
   return NextResponse.json({
+    adminCredentials: {
+      email: admin.email,
+      password: seedPassword,
+      role: admin.role,
+      username: admin.username,
+    },
     users: 6,
     listings: 5,
     verificationEvents: 8,

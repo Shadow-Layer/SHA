@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 
 import { getAuthSession } from "@/lib/auth";
@@ -30,27 +31,61 @@ type ImportError = {
   reason: string;
 };
 
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+type PreparedImportRow = {
+  rowIndex: number;
+  phone: string;
+  placeholderEmail: string;
+  ownerName: string;
+  utilities: string;
+  rentalCharges: string;
+  area: string;
+  landmark: string;
+  userId: mongoose.Types.ObjectId;
+  row: ImportRow;
+};
+
+export const maxDuration = 60;
+
+function getPlaceholderEmailBase(phoneDigits: string) {
+  return createPlaceholderEmail(phoneDigits).replace("@sha.internal", "");
 }
 
-async function ensureUniquePlaceholderEmail(phoneDigits: string) {
-  const base = createPlaceholderEmail(phoneDigits).replace("@sha.internal", "");
-  let candidate = `${base}@sha.internal`;
-  let suffix = 1;
+function getPlaceholderEmailSuffixByBase(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const match = normalizedEmail.match(/^(landlord_[a-z0-9]+)(?:_(\d+))?@sha\.internal$/i);
 
-  for (;;) {
-    const existing = await User.findOne({ email: candidate })
-      .select({ _id: 1 })
-      .lean()
-      .exec();
+  if (!match) {
+    return null;
+  }
 
-    if (!existing) {
-      return candidate;
-    }
+  return {
+    base: match[1].toLowerCase(),
+    suffix: match[2] ? Number.parseInt(match[2], 10) : 0,
+  };
+}
 
-    candidate = `${base}_${suffix}@sha.internal`;
-    suffix += 1;
+function allocatePlaceholderEmail(
+  phoneDigits: string,
+  nextEmailSuffixByBase: Map<string, number>,
+) {
+  const base = getPlaceholderEmailBase(phoneDigits).toLowerCase();
+  const nextSuffix = nextEmailSuffixByBase.get(base) ?? 0;
+  const email = nextSuffix === 0 ? `${base}@sha.internal` : `${base}_${nextSuffix}@sha.internal`;
+
+  nextEmailSuffixByBase.set(base, nextSuffix + 1);
+
+  return email;
+}
+
+function releasePlaceholderEmail(email: string, nextEmailSuffixByBase: Map<string, number>) {
+  const placeholder = getPlaceholderEmailSuffixByBase(email);
+  if (!placeholder) {
+    return;
+  }
+
+  const expectedNextSuffix = placeholder.suffix + 1;
+  if (nextEmailSuffixByBase.get(placeholder.base) === expectedNextSuffix) {
+    nextEmailSuffixByBase.set(placeholder.base, placeholder.suffix);
   }
 }
 
@@ -84,10 +119,44 @@ export async function POST(request: Request) {
 
   await connectDB();
 
+  const existingImportedUsers = await User.find({ source: "pdf_import" })
+    .select({ phone: 1, email: 1 })
+    .lean()
+    .exec();
+
   const errors: ImportError[] = [];
   let successful = 0;
   let failed = 0;
   let skipped = 0;
+  const existingImportedPhoneDigits = new Set<string>();
+  const existingPlaceholderEmailBases = new Set<string>();
+  const nextEmailSuffixByBase = new Map<string, number>();
+
+  for (const existingImportedUser of existingImportedUsers) {
+    if (typeof existingImportedUser.phone === "string" && existingImportedUser.phone.trim()) {
+      const existingPhoneDigits = normalizePhoneDigits(existingImportedUser.phone);
+      if (existingPhoneDigits) {
+        existingImportedPhoneDigits.add(existingPhoneDigits);
+      }
+    }
+
+    if (typeof existingImportedUser.email === "string") {
+      const placeholder = getPlaceholderEmailSuffixByBase(existingImportedUser.email);
+      if (!placeholder) {
+        continue;
+      }
+
+      existingPlaceholderEmailBases.add(placeholder.base);
+      const nextSuffix = placeholder.suffix + 1;
+      const currentNextSuffix = nextEmailSuffixByBase.get(placeholder.base) ?? 0;
+      if (nextSuffix > currentNextSuffix) {
+        nextEmailSuffixByBase.set(placeholder.base, nextSuffix);
+      }
+    }
+  }
+
+  const placeholderPasswordHash = await bcrypt.hash(crypto.randomUUID(), 12);
+  const preparedRows: PreparedImportRow[] = [];
 
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index];
@@ -104,82 +173,93 @@ export async function POST(request: Request) {
       continue;
     }
 
-    const duplicate = await User.findOne({
-      source: "pdf_import",
-      $or: [
-        { phone },
-        {
-          email: {
-            $regex: `^landlord_${escapeRegex(phoneDigits)}(?:_\\d+)?@sha\\.internal$`,
-            $options: "i",
-          },
-        },
-      ],
-    })
-      .select({ _id: 1 })
-      .lean()
-      .exec();
+    const placeholderEmailBase = getPlaceholderEmailBase(phoneDigits).toLowerCase();
 
-    if (duplicate) {
+    if (
+      existingImportedPhoneDigits.has(phoneDigits) ||
+      existingPlaceholderEmailBases.has(placeholderEmailBase)
+    ) {
       skipped += 1;
       continue;
     }
 
-    let createdUserId: string | null = null;
-    let createdUserThisRow = false;
+    const placeholderEmail = allocatePlaceholderEmail(phoneDigits, nextEmailSuffixByBase);
 
+    preparedRows.push({
+      rowIndex: index,
+      phone,
+      placeholderEmail,
+      ownerName,
+      utilities,
+      rentalCharges,
+      area,
+      landmark,
+      userId: new mongoose.Types.ObjectId(),
+      row,
+    });
+
+    existingImportedPhoneDigits.add(phoneDigits);
+    existingPlaceholderEmailBases.add(placeholderEmailBase);
+  }
+
+  if (preparedRows.length > 0) {
     try {
-      const placeholderEmail = await ensureUniquePlaceholderEmail(phoneDigits);
-      const hashedPassword = await bcrypt.hash(crypto.randomUUID(), 12);
+      await User.insertMany(
+        preparedRows.map((item) => ({
+          _id: item.userId,
+          name: item.ownerName || "Imported landlord",
+          email: item.placeholderEmail,
+          hashedPassword: placeholderPasswordHash,
+          role: "landlord",
+          phone: item.phone,
+          source: "pdf_import",
+          inviteStatus: "imported",
+          contactStatus: "not_contacted",
+          isInvited: false,
+          onboardingCompleted: false,
+        })),
+        { ordered: true },
+      );
 
-      const user = await User.create({
-        name: ownerName || "Imported landlord",
-        email: placeholderEmail,
-        hashedPassword,
-        role: "landlord",
-        phone,
-        source: "pdf_import",
-        inviteStatus: "imported",
-        contactStatus: "not_contacted",
-        isInvited: false,
-        onboardingCompleted: false,
-      });
+      await Listing.insertMany(
+        preparedRows.map((item) => ({
+          landlordId: item.userId,
+          title: `Student Accommodation, ${item.area}`,
+          area: item.area,
+          landmark: item.landmark,
+          capacity: parseCapacity(item.row.capacity),
+          amenities: parseAmenities(item.utilities),
+          tenantPreferences: mapTenantPreferences(item.row.genderPreference),
+          status: "imported_draft",
+          source: "pdf_import",
+          importBatchId: batchId,
+          rawImportedText: JSON.stringify(item.row),
+          importNotes: item.utilities,
+          pricingDisplayText: item.rentalCharges,
+          pricingPeriod: parsePricingPeriod(item.rentalCharges || ""),
+          seedConfidence: "low",
+          publiclyVisible: false,
+          landlordConsentConfirmed: false,
+          completedByLandlord: false,
+        })),
+        { ordered: true },
+      );
 
-      createdUserId = String(user._id);
-      createdUserThisRow = true;
-
-      await Listing.create({
-        landlordId: user._id,
-        title: `Student Accommodation, ${area}`,
-        area,
-        landmark,
-        capacity: parseCapacity(row.capacity),
-        amenities: parseAmenities(utilities),
-        tenantPreferences: mapTenantPreferences(row.genderPreference),
-        status: "imported_draft",
-        source: "pdf_import",
-        importBatchId: batchId,
-        rawImportedText: JSON.stringify(row),
-        importNotes: utilities,
-        pricingDisplayText: rentalCharges,
-        pricingPeriod: parsePricingPeriod(rentalCharges || ""),
-        seedConfidence: "low",
-        publiclyVisible: false,
-        landlordConsentConfirmed: false,
-        completedByLandlord: false,
-      });
-
-      successful += 1;
+      successful += preparedRows.length;
     } catch (error) {
-      failed += 1;
-      errors.push({
-        row: index,
-        reason: error instanceof Error ? error.message : "Unable to import row.",
-      });
+      await User.deleteMany({
+        _id: { $in: preparedRows.map((item) => item.userId) },
+      }).exec();
 
-      if (createdUserThisRow && createdUserId) {
-        await User.deleteOne({ _id: createdUserId }).exec();
+      for (const preparedRow of preparedRows) {
+        releasePlaceholderEmail(preparedRow.placeholderEmail, nextEmailSuffixByBase);
       }
+
+      failed += preparedRows.length;
+      errors.push({
+        row: preparedRows[0]?.rowIndex ?? 0,
+        reason: error instanceof Error ? error.message : "Unable to import rows.",
+      });
     }
   }
 

@@ -32,7 +32,9 @@ export async function POST(_: Request, { params }: RouteContext) {
 
   const [user, listing] = await Promise.all([
     User.findOne({ _id: params.userId, source: "pdf_import", role: "landlord" }).exec(),
-    Listing.findOne({ landlordId: params.userId, source: "pdf_import" }).exec(),
+    Listing.findOne({ landlordId: params.userId, source: "pdf_import" })
+      .sort({ createdAt: -1 })
+      .exec(),
   ]);
 
   if (!user) {
