@@ -10,8 +10,15 @@ import User from "@/lib/models/User";
 
 const CATEGORIES = new Set<string>(FORUM_CATEGORIES);
 
-function canReadCategory(role: string | undefined, category: (typeof FORUM_CATEGORIES)[number]) {
-  return role === "student" || ((role === "landlord" || role === "service_provider") && category === "services");
+function canReadCategory(
+  role: string | undefined,
+  category: ((typeof FORUM_CATEGORIES)[number]) | null,
+) {
+  if (role === "student") {
+    return true;
+  }
+
+  return (role === "landlord" || role === "service_provider") && category === "services";
 }
 
 function canCreateCategory(role: string | undefined, category: (typeof FORUM_CATEGORIES)[number]) {
