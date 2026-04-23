@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
     tenantPreferences: bodyObj.tenantPreferences || [],
     photos: bodyObj.photos || [],
     status: "pending_review",
+    publiclyVisible: true,
     verificationLevel: "landlord_confirmed",
   });
 

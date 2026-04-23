@@ -1,4 +1,4 @@
-import { ensureBaseUrlReachable, makeTestRunner, resetState } from "./helpers.mjs";
+import { ensureBaseUrlReachable, makeTestRunner, resetState, writeState } from "./helpers.mjs";
 import { config } from "./config.mjs";
 import { run as runTc01 } from "./tc01-landlord-register.mjs";
 import { run as runTc02 } from "./tc02-create-listing.mjs";
@@ -33,6 +33,7 @@ await ensureBaseUrlReachable(config.BASE_URL);
 
 async function seedDatabase() {
   let response;
+  let data;
 
   try {
     response = await fetch(`${config.BASE_URL}/api/seed`, {
@@ -47,11 +48,26 @@ async function seedDatabase() {
     process.exit(1);
   }
 
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
   if (response.status !== 200) {
-    const body = await response.text();
-    console.error(`E2E_ABORT: Seed failed [${response.status}]: ${body}`);
+    console.error(`E2E_ABORT: Seed failed [${response.status}]: ${JSON.stringify(data)}`);
     process.exit(1);
   }
+
+  if (!data?.adminCredentials?.email || !data?.adminCredentials?.password) {
+    console.error(`E2E_ABORT: Seed response missing admin credentials: ${JSON.stringify(data)}`);
+    process.exit(1);
+  }
+
+  writeState({
+    adminEmail: data.adminCredentials.email,
+    adminPassword: data.adminCredentials.password,
+  });
 
   console.log("Seed OK — database reset.");
 }
