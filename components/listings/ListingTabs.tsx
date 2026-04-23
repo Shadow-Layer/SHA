@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import type { ForumPostSummary } from "@/lib/forum";
+import type { ForumPostSummary } from "@/lib/forum-shared";
 
 export type ListingReview = {
   id: string;

@@ -8,7 +8,7 @@ import {
   FORUM_CATEGORIES,
   FORUM_CATEGORY_CONFIG,
   STUDENT_ONLY_FORUM_ACCESS_MESSAGE,
-} from "@/lib/forum";
+} from "@/lib/forum-shared";
 
 type NewPostModalProps = {
   defaultCategory: string;

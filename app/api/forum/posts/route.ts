@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getAuthSession } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
-import { FORUM_CATEGORIES } from "@/lib/forum";
+import { FORUM_CATEGORIES } from "@/lib/forum-shared";
 import ForumComment from "@/lib/models/ForumComment";
 import ForumPost from "@/lib/models/ForumPost";
 import ServiceProvider from "@/lib/models/ServiceProvider";

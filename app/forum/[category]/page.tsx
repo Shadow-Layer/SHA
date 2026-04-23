@@ -9,7 +9,7 @@ import {
   FORUM_CATEGORIES,
   FORUM_CATEGORY_CONFIG,
   STUDENT_ONLY_FORUM_ACCESS_MESSAGE,
-} from "@/lib/forum";
+} from "@/lib/forum-shared";
 import ForumComment from "@/lib/models/ForumComment";
 import ForumPost from "@/lib/models/ForumPost";
 import ServiceProvider from "@/lib/models/ServiceProvider";

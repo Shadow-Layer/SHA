@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { STUDENT_ONLY_FORUM_ACCESS_MESSAGE } from "@/lib/forum";
+import { STUDENT_ONLY_FORUM_ACCESS_MESSAGE } from "@/lib/forum-shared";
 
 type Comment = {
   id: string;
