@@ -10,7 +10,9 @@ type RegisterPageProps = {
 export default function RegisterPage({ searchParams }: RegisterPageProps) {
   const callbackUrl = searchParams.callbackUrl ?? "/dashboard";
   const role =
-    searchParams.role === "student" || searchParams.role === "landlord"
+    searchParams.role === "student" ||
+    searchParams.role === "landlord" ||
+    searchParams.role === "service_provider"
       ? searchParams.role
       : undefined;
 
@@ -19,7 +21,7 @@ export default function RegisterPage({ searchParams }: RegisterPageProps) {
       <section className="rounded-xl border bg-card p-6 shadow-sm">
         <h1 className="text-2xl font-semibold tracking-tight">Create account</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Join SHA as a student or landlord.
+          Join SHA as a student, landlord, or service provider.
         </p>
 
         <div className="mt-6">

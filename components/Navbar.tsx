@@ -10,7 +10,7 @@ type NavItem = {
   href: string;
 };
 
-function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
+function getRoleNav(role?: "student" | "landlord" | "service_provider" | "admin"): NavItem[] {
   if (role === "student") {
     return [
       { label: "Listings", href: "/listings" },
@@ -35,6 +35,14 @@ function getRoleNav(role?: "student" | "landlord" | "admin"): NavItem[] {
       { label: "Services", href: "/services" },
       { label: "Dashboard", href: "/dashboard" },
       { label: "Admin Panel", href: "/admin" },
+    ];
+  }
+
+  if (role === "service_provider") {
+    return [
+      { label: "Services", href: "/services" },
+      { label: "Inbox", href: "/inbox" },
+      { label: "Dashboard", href: "/dashboard/provider" },
     ];
   }
 

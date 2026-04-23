@@ -14,8 +14,13 @@ type Comment = {
 
 type PostDetailClientProps = {
   postId: string;
+  category: string;
   comments: Comment[];
   upvoteCount: number;
+  canUpvote: boolean;
+  canComment: boolean;
+  canRespondAsProvider: boolean;
+  providerCommentPrefix: string;
 };
 
 function formatDate(value: string) {
@@ -32,7 +37,16 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-export default function PostDetailClient({ postId, comments, upvoteCount }: PostDetailClientProps) {
+export default function PostDetailClient({
+  postId,
+  category,
+  comments,
+  upvoteCount,
+  canUpvote,
+  canComment,
+  canRespondAsProvider,
+  providerCommentPrefix,
+}: PostDetailClientProps) {
   const router = useRouter();
   const [newComment, setNewComment] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -104,9 +118,11 @@ export default function PostDetailClient({ postId, comments, upvoteCount }: Post
   return (
     <section className="mt-5">
       <div className="flex items-center gap-2">
-        <Button type="button" variant="outline" disabled={loading} onClick={() => void upvote()}>
-          Upvote ({upvoteCount})
-        </Button>
+        {canUpvote ? (
+          <Button type="button" variant="outline" disabled={loading} onClick={() => void upvote()}>
+            Upvote ({upvoteCount})
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant="outline"
@@ -143,26 +159,49 @@ export default function PostDetailClient({ postId, comments, upvoteCount }: Post
         )}
       </div>
 
-      <form
-        className="mt-5 space-y-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submitComment();
-        }}
-      >
-        <label className="block text-sm font-medium">
-          Add comment
-          <textarea
-            rows={3}
-            className="mt-2 w-full rounded-md border px-3 py-2 text-sm"
-            value={newComment}
-            onChange={(event) => setNewComment(event.target.value)}
-          />
-        </label>
-        <Button type="submit" disabled={loading || !newComment.trim()}>
-          Comment
+      {canRespondAsProvider ? (
+        <Button
+          type="button"
+          className="mt-5"
+          variant="outline"
+          onClick={() =>
+            setNewComment((current) =>
+              current.startsWith(providerCommentPrefix)
+                ? current
+                : `${providerCommentPrefix}${current}`,
+            )
+          }
+        >
+          Respond as Provider
         </Button>
-      </form>
+      ) : null}
+
+      {canComment ? (
+        <form
+          className="mt-5 space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitComment();
+          }}
+        >
+          <label className="block text-sm font-medium">
+            {canRespondAsProvider ? "Response" : "Add comment"}
+            <textarea
+              rows={3}
+              className="mt-2 w-full rounded-md border px-3 py-2 text-sm"
+              value={newComment}
+              onChange={(event) => setNewComment(event.target.value)}
+            />
+          </label>
+          <Button type="submit" disabled={loading || !newComment.trim()}>
+            {canRespondAsProvider ? "Post response" : "Comment"}
+          </Button>
+        </form>
+      ) : category === "services" ? (
+        <p className="mt-5 text-sm text-muted-foreground">
+          Only students and service providers can reply in this thread.
+        </p>
+      ) : null}
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
     </section>
   );

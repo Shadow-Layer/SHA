@@ -105,7 +105,7 @@ export default async function InboxPage() {
       <h1 className="text-2xl font-semibold">Inbox</h1>
       <InboxClient
         currentUserId={session.user.id}
-        role={session.user.role as "student" | "landlord" | "admin"}
+        role={session.user.role}
         conversations={conversations}
         initialConversationId={conversations[0]?.id ?? null}
         initialMessages={initialMessages}

@@ -1,40 +1,20 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import type { ServiceProviderFormData, ServiceProviderProfilePayload } from "@/lib/service-providers";
 
-type PreferredContact = "whatsapp" | "call" | "email";
-type ServiceCategory =
-  | "transport"
-  | "wifi_internet"
-  | "moving"
-  | "cleaning"
-  | "repairs_handyman"
-  | "food_catering"
-  | "security"
-  | "other";
-type Availability = "always" | "weekdays" | "weekends" | "on_request";
-type TargetCustomers = "students" | "landlords" | "both";
-
-type FormState = {
-  businessName: string;
-  contactName: string;
-  phone: string;
-  email: string;
-  preferredContact: PreferredContact;
-  category: ServiceCategory;
-  description: string;
-  areasServed: string;
-  availability: Availability;
-  priceRange: string;
-  pricingNotes: string;
-  photos: string[];
-  targetCustomers: TargetCustomers;
-  consentGiven: boolean;
+type ServiceProviderRegisterFormProps = {
+  mode: "register" | "edit";
+  initialData?: Partial<ServiceProviderFormData>;
+  initialAccountName?: string;
+  initialAccountEmail?: string;
+  providerId?: string;
 };
 
-const INITIAL_FORM: FormState = {
+const INITIAL_FORM: ServiceProviderFormData = {
   businessName: "",
   contactName: "",
   phone: "",
@@ -54,7 +34,7 @@ const INITIAL_FORM: FormState = {
 const fieldClassName =
   "mt-2 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm outline-none transition focus-visible:ring-1 focus-visible:ring-ring";
 
-const CATEGORY_OPTIONS: Array<{ value: ServiceCategory; label: string }> = [
+const CATEGORY_OPTIONS = [
   { value: "transport", label: "Transport" },
   { value: "wifi_internet", label: "WiFi / Internet" },
   { value: "moving", label: "Moving" },
@@ -63,26 +43,79 @@ const CATEGORY_OPTIONS: Array<{ value: ServiceCategory; label: string }> = [
   { value: "food_catering", label: "Food / Catering" },
   { value: "security", label: "Security" },
   { value: "other", label: "Other" },
-];
+] as const;
 
-const CONTACT_OPTIONS: Array<{ value: PreferredContact; label: string }> = [
+const CONTACT_OPTIONS = [
   { value: "whatsapp", label: "WhatsApp" },
   { value: "call", label: "Phone Call" },
   { value: "email", label: "Email" },
-];
+] as const;
 
-const AVAILABILITY_OPTIONS: Array<{ value: Availability; label: string }> = [
+const AVAILABILITY_OPTIONS = [
   { value: "always", label: "Always available" },
   { value: "weekdays", label: "Weekdays only" },
   { value: "weekends", label: "Weekends only" },
   { value: "on_request", label: "On request" },
-];
+] as const;
 
-const TARGET_OPTIONS: Array<{ value: TargetCustomers; label: string }> = [
+const TARGET_OPTIONS = [
   { value: "students", label: "Students" },
   { value: "landlords", label: "Landlords" },
   { value: "both", label: "Both" },
-];
+] as const;
+
+function buildInitialForm({
+  mode,
+  initialData,
+  initialAccountName,
+  initialAccountEmail,
+}: Pick<
+  ServiceProviderRegisterFormProps,
+  "mode" | "initialData" | "initialAccountName" | "initialAccountEmail"
+>): ServiceProviderFormData {
+  const useAccountDefaults = mode === "register" && !initialData;
+
+  return {
+    ...INITIAL_FORM,
+    ...initialData,
+    contactName: initialData?.contactName ?? (useAccountDefaults ? (initialAccountName ?? "") : ""),
+    email: initialData?.email ?? (useAccountDefaults ? (initialAccountEmail ?? "") : ""),
+    photos: Array.isArray(initialData?.photos) ? initialData.photos : [],
+    consentGiven: initialData?.consentGiven ?? INITIAL_FORM.consentGiven,
+  };
+}
+
+function buildProfilePayload(form: ServiceProviderFormData): ServiceProviderProfilePayload {
+  return {
+    businessName: form.businessName,
+    contactName: form.contactName,
+    phone: form.phone,
+    email: form.email,
+    preferredContact: form.preferredContact,
+    category: form.category,
+    description: form.description,
+    areasServed: form.areasServed,
+    availability: form.availability,
+    priceRange: form.priceRange,
+    pricingNotes: form.pricingNotes,
+    photos: form.photos,
+    targetCustomers: form.targetCustomers,
+  };
+}
+
+async function hasAuthenticatedProviderSession() {
+  try {
+    const response = await fetch("/api/auth/session", { cache: "no-store" });
+    if (!response.ok) {
+      return false;
+    }
+
+    const session = (await response.json()) as { user?: { role?: string } };
+    return session.user?.role === "service_provider";
+  } catch {
+    return false;
+  }
+}
 
 function RadioGroup<T extends string>({
   label,
@@ -94,7 +127,7 @@ function RadioGroup<T extends string>({
   label: string;
   name: string;
   value: T;
-  options: Array<{ value: T; label: string }>;
+  options: ReadonlyArray<{ value: T; label: string }>;
   onChange: (nextValue: T) => void;
 }) {
   return (
@@ -126,15 +159,31 @@ function RadioGroup<T extends string>({
   );
 }
 
-export default function ServiceProviderRegisterForm() {
-  const [form, setForm] = useState<FormState>(INITIAL_FORM);
+export default function ServiceProviderRegisterForm({
+  mode,
+  initialData,
+  initialAccountName = "",
+  initialAccountEmail = "",
+  providerId,
+}: ServiceProviderRegisterFormProps) {
+  const router = useRouter();
+  const [form, setForm] = useState<ServiceProviderFormData>(() =>
+    buildInitialForm({ mode, initialData, initialAccountName, initialAccountEmail }),
+  );
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
+  useEffect(() => {
+    setForm(buildInitialForm({ mode, initialData, initialAccountName, initialAccountEmail }));
+  }, [initialAccountEmail, initialAccountName, initialData, mode]);
+
+  function updateField<K extends keyof ServiceProviderFormData>(
+    key: K,
+    value: ServiceProviderFormData[K],
+  ) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
@@ -154,7 +203,7 @@ export default function ServiceProviderRegisterForm() {
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await fetch("/api/upload", {
+        const response = await fetch("/api/upload/service-provider", {
           method: "POST",
           body: formData,
         });
@@ -183,22 +232,53 @@ export default function ServiceProviderRegisterForm() {
     setSuccess(null);
 
     try {
-      const response = await fetch("/api/service-providers", {
-        method: "POST",
+      if (mode === "edit" && !providerId) {
+        throw new Error("Unable to save changes right now.");
+      }
+
+      const endpoint =
+        mode === "edit" ? `/api/service-providers/${providerId}` : "/api/service-providers";
+      const method = mode === "edit" ? "PATCH" : "POST";
+      const payload = mode === "edit" ? buildProfilePayload(form) : form;
+
+      const response = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       const data = (await response.json()) as { error?: string; message?: string };
       if (!response.ok) {
-        throw new Error(data.error || "Unable to submit your service.");
+        throw new Error(
+          data.error ||
+            (mode === "edit" ? "Unable to save your profile." : "Unable to submit your service."),
+        );
+      }
+
+      setUploadError(null);
+
+      if (mode === "edit") {
+        setSuccess("Profile saved");
+        return;
+      }
+
+      const shouldRedirect = await hasAuthenticatedProviderSession();
+      if (shouldRedirect) {
+        router.push("/dashboard/provider");
+        router.refresh();
+        return;
       }
 
       setForm(INITIAL_FORM);
-      setUploadError(null);
       setSuccess(data.message || "Your service has been submitted for review. We'll be in touch.");
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to submit your service.");
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : mode === "edit"
+            ? "Unable to save your profile."
+            : "Unable to submit your service.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -299,7 +379,7 @@ export default function ServiceProviderRegisterForm() {
               id="category"
               className={fieldClassName}
               value={form.category}
-              onChange={(event) => updateField("category", event.target.value as ServiceCategory)}
+              onChange={(event) => updateField("category", event.target.value as ServiceProviderFormData["category"])}
             >
               {CATEGORY_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -425,6 +505,7 @@ export default function ServiceProviderRegisterForm() {
               type="checkbox"
               className="mt-1 h-4 w-4 rounded border"
               checked={form.consentGiven}
+              disabled={mode === "edit"}
               onChange={(event) => updateField("consentGiven", event.target.checked)}
             />
             <span>
@@ -446,9 +527,15 @@ export default function ServiceProviderRegisterForm() {
         ) : null}
 
         <div className="flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">Submission takes about 2-3 minutes.</p>
-          <Button type="submit" size="lg" disabled={submitting || !form.consentGiven || uploading}>
-            {submitting ? "Submitting..." : "Submit for Review"}
+          <p className="text-sm text-muted-foreground">
+            {mode === "edit" ? "Changes save back to your provider profile." : "Submission takes about 2-3 minutes."}
+          </p>
+          <Button
+            type="submit"
+            size="lg"
+            disabled={submitting || uploading || (mode === "register" && !form.consentGiven)}
+          >
+            {submitting ? (mode === "edit" ? "Saving..." : "Submitting...") : mode === "edit" ? "Save Changes" : "Submit for Review"}
           </Button>
         </div>
       </form>

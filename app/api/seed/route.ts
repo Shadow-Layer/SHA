@@ -14,6 +14,8 @@ import ForumPost from "@/lib/models/ForumPost";
 import ForumComment from "@/lib/models/ForumComment";
 import Notification from "@/lib/models/Notification";
 import ServiceProvider from "@/lib/models/ServiceProvider";
+import ServiceProviderFeedback from "@/lib/models/ServiceProviderFeedback";
+import ServiceProviderOutreachEvent from "@/lib/models/ServiceProviderOutreachEvent";
 
 type SeededForumPost = {
   _id: Types.ObjectId;
@@ -46,6 +48,8 @@ export async function POST(request: NextRequest) {
   await ForumComment.deleteMany({});
   await ForumPost.deleteMany({});
   await Listing.deleteMany({});
+  await ServiceProviderFeedback.deleteMany({});
+  await ServiceProviderOutreachEvent.deleteMany({});
   await ServiceProvider.deleteMany({});
   await User.deleteMany({});
 
@@ -166,6 +170,7 @@ export async function POST(request: NextRequest) {
 
   const serviceProviders = await ServiceProvider.create([
     {
+      userId: null,
       businessName: "Mutare Fast Movers",
       contactName: "Tendai Moyo",
       phone: "0771234567",
@@ -178,10 +183,15 @@ export async function POST(request: NextRequest) {
       targetCustomers: "students",
       photos: [],
       status: "published",
+      contactStatus: "not_contacted",
+      rating: 0,
+      upvotes: [],
+      feedbackCount: 0,
       consentGiven: true,
       source: "admin_created",
     },
     {
+      userId: null,
       businessName: "ConnectEase WiFi",
       contactName: "Rudo Chikwanda",
       phone: "0782345678",
@@ -194,10 +204,15 @@ export async function POST(request: NextRequest) {
       targetCustomers: "both",
       photos: [],
       status: "published",
+      contactStatus: "not_contacted",
+      rating: 0,
+      upvotes: [],
+      feedbackCount: 0,
       consentGiven: true,
       source: "admin_created",
     },
     {
+      userId: null,
       businessName: "Sparkle Clean",
       contactName: "Mercy Dube",
       phone: "0793456789",
@@ -210,6 +225,10 @@ export async function POST(request: NextRequest) {
       targetCustomers: "both",
       photos: [],
       status: "published",
+      contactStatus: "not_contacted",
+      rating: 0,
+      upvotes: [],
+      feedbackCount: 0,
       consentGiven: true,
       source: "admin_created",
     },

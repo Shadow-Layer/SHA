@@ -4,7 +4,7 @@ const EntityRefSchema = new Schema(
   {
     type: {
       type: String,
-      enum: ["listing", "landlord", "location", "amenity"],
+      enum: ["listing", "landlord", "location", "amenity", "service_provider"],
     },
     id: { type: String },
   },
@@ -26,6 +26,7 @@ const ForumPostSchema = new Schema(
         "locations",
         "amenities",
         "service_providers",
+        "services",
         "general",
       ],
       required: true,

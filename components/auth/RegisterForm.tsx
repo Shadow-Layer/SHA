@@ -18,6 +18,11 @@ const roles = [
     title: "Landlord",
     description: "List properties and manage housing applications.",
   },
+  {
+    value: "service_provider",
+    title: "Service Provider",
+    description: "List your services and reach students and landlords directly.",
+  },
 ] as const;
 
 type RegisterFormProps = {
@@ -44,13 +49,17 @@ export default function RegisterForm({ callbackUrl, initialRole }: RegisterFormP
     setError("");
     setIsSubmitting(true);
 
+    const submittedRole = role;
+    const submittedPostRegisterUrl =
+      submittedRole === "service_provider" ? "/providers/join" : callbackUrl;
+
     const response = await fetch("/api/auth/register", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        role,
+        role: submittedRole,
         name,
         email,
         phone,
@@ -71,18 +80,18 @@ export default function RegisterForm({ callbackUrl, initialRole }: RegisterFormP
       email,
       password,
       redirect: false,
-      callbackUrl,
+      callbackUrl: submittedPostRegisterUrl,
     });
 
     setIsSubmitting(false);
 
     if (loginResult?.error) {
       setError("Account created, but auto-login failed. Please sign in.");
-      router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+      router.push(`/auth/login?callbackUrl=${encodeURIComponent(submittedPostRegisterUrl)}`);
       return;
     }
 
-    router.push(loginResult?.url ?? callbackUrl);
+    router.push(loginResult?.url ?? submittedPostRegisterUrl);
     router.refresh();
   }
 
@@ -90,17 +99,18 @@ export default function RegisterForm({ callbackUrl, initialRole }: RegisterFormP
     <form onSubmit={onSubmit} className="space-y-5">
       <div className="space-y-2">
         <p className="text-sm font-medium">I am registering as</p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           {roles.map((roleOption) => (
             <button
               type="button"
               key={roleOption.value}
               onClick={() => setRole(roleOption.value)}
+              disabled={isSubmitting}
               className={`rounded-lg border p-4 text-left transition ${
                 role === roleOption.value
                   ? "border-primary bg-primary/5"
                   : "border-border hover:border-primary/50"
-              }`}
+              } ${isSubmitting ? "cursor-not-allowed opacity-60" : ""}`}
             >
               <p className="font-semibold">{roleOption.title}</p>
               <p className="mt-1 text-sm text-muted-foreground">

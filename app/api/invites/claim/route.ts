@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import LandlordOutreachEvent from "@/lib/models/LandlordOutreachEvent";
 import Listing from "@/lib/models/Listing";
+import Notification from "@/lib/models/Notification";
 import User from "@/lib/models/User";
 
 const CLAIMABLE_LISTING_STATUSES = ["awaiting_landlord_claim", "imported_draft"] as const;
@@ -163,6 +164,38 @@ export async function POST(request: Request) {
     notes: "Landlord claimed account via invite link",
     createdAt: now,
   });
+
+  try {
+    void Promise.all([
+      Notification.create({
+        userId: user._id,
+        type: "listing_completion_needed",
+        message: "Your account is active. Complete your listing details to go live on SHA.",
+        relatedId: String(listing._id),
+        relatedType: "listing",
+      }),
+      User.find({ role: "admin" })
+        .select("_id")
+        .lean()
+        .exec()
+        .then((admins) => {
+          if (admins.length === 0) {
+            return;
+          }
+
+          return Notification.insertMany(
+            admins.map((admin) => ({
+              userId: admin._id,
+              type: "account_claimed",
+              message:
+                "A landlord has claimed their account and is ready to complete their listing.",
+              relatedId: String(listing._id),
+              relatedType: "listing",
+            })),
+          );
+        }),
+    ]).catch(() => {});
+  } catch {}
 
   return NextResponse.json({ ok: true, email: user.email });
 }

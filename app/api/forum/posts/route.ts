@@ -2,21 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getAuthSession } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
+import { FORUM_CATEGORIES } from "@/lib/forum";
 import ForumComment from "@/lib/models/ForumComment";
 import ForumPost from "@/lib/models/ForumPost";
+import ServiceProvider from "@/lib/models/ServiceProvider";
 import User from "@/lib/models/User";
 
-const CATEGORIES = new Set([
-  "houses",
-  "landlords",
-  "locations",
-  "amenities",
-  "service_providers",
-  "general",
-]);
+const CATEGORIES = new Set<string>(FORUM_CATEGORIES);
 
-function requireStudentSession(role?: string) {
-  return role === "student";
+function canReadCategory(role: string | undefined, category: (typeof FORUM_CATEGORIES)[number]) {
+  return role === "student" || ((role === "landlord" || role === "service_provider") && category === "services");
+}
+
+function canCreateCategory(role: string | undefined, category: (typeof FORUM_CATEGORIES)[number]) {
+  return role === "student" || (role === "landlord" && category === "services");
 }
 
 export async function GET(request: NextRequest) {
@@ -24,21 +23,28 @@ export async function GET(request: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!requireStudentSession(session.user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   const searchParams = request.nextUrl.searchParams;
-  const category = searchParams.get("category");
+  const requestedCategory = searchParams.get("category");
+  const categoryKey =
+    requestedCategory && CATEGORIES.has(requestedCategory)
+      ? (requestedCategory as (typeof FORUM_CATEGORIES)[number])
+      : null;
   const entityType = searchParams.get("entityType");
   const entityId = searchParams.get("entityId");
   const sort = searchParams.get("sort") === "upvotes" ? "upvotes" : "recent";
   const page = Math.max(Number.parseInt(searchParams.get("page") || "1", 10), 1);
   const limit = Math.min(Math.max(Number.parseInt(searchParams.get("limit") || "20", 10), 1), 50);
+  const effectiveCategory =
+    session.user.role === "student" ? categoryKey : categoryKey ?? "services";
+
+  if (!canReadCategory(session.user.role, effectiveCategory)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const query: Record<string, unknown> = { status: "active" };
-  if (category && CATEGORIES.has(category)) {
-    query.category = category;
+  if (effectiveCategory) {
+    query.category = effectiveCategory;
   }
   if (entityType && entityId) {
     query["entityRef.type"] = entityType;
@@ -66,7 +72,7 @@ export async function GET(request: NextRequest) {
   const postIds = sortedPosts.map((post) => post._id);
   const authorIds = Array.from(new Set(sortedPosts.map((post) => String(post.authorId))));
 
-  const [commentsByPost, authors] = await Promise.all([
+  const [commentsByPost, authors, providerAuthors] = await Promise.all([
     ForumComment.aggregate([
       { $match: { postId: { $in: postIds }, status: "active" } },
       { $group: { _id: "$postId", count: { $sum: 1 } } },
@@ -75,12 +81,24 @@ export async function GET(request: NextRequest) {
       .select({ _id: 1, name: 1, email: 1 })
       .lean()
       .exec(),
+    sortedPosts.some((post) => post.category === "services")
+      ? ServiceProvider.find({ userId: { $in: authorIds } })
+          .select({ _id: 1, userId: 1, businessName: 1 })
+          .lean()
+          .exec()
+      : Promise.resolve([]),
   ]);
 
   const commentCountMap = new Map(
     commentsByPost.map((item) => [String(item._id), Number(item.count) || 0]),
   );
   const authorMap = new Map(authors.map((author) => [String(author._id), author]));
+  const providerAuthorMap = new Map(
+    providerAuthors.map((provider) => [
+      String(provider.userId),
+      typeof provider.businessName === "string" ? provider.businessName : "",
+    ]),
+  );
 
   return NextResponse.json({
     posts: sortedPosts.map((post) => ({
@@ -90,6 +108,7 @@ export async function GET(request: NextRequest) {
       body: post.body,
       entityRef: post.entityRef || null,
       authorName:
+        (post.category === "services" ? providerAuthorMap.get(String(post.authorId)) : "") ||
         authorMap.get(String(post.authorId))?.name ||
         authorMap.get(String(post.authorId))?.email ||
         "Anonymous",
@@ -111,9 +130,6 @@ export async function POST(request: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!requireStudentSession(session.user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   let body: Record<string, unknown>;
   try {
@@ -123,11 +139,17 @@ export async function POST(request: NextRequest) {
   }
 
   const category = typeof body.category === "string" ? body.category : "";
+  const categoryKey = CATEGORIES.has(category)
+    ? (category as (typeof FORUM_CATEGORIES)[number])
+    : null;
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const postBody = typeof body.body === "string" ? body.body.trim() : "";
 
-  if (!CATEGORIES.has(category)) {
+  if (!categoryKey) {
     return NextResponse.json({ error: "Invalid category" }, { status: 400 });
+  }
+  if (!canCreateCategory(session.user.role, categoryKey)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!title || !postBody) {
     return NextResponse.json({ error: "title and body are required" }, { status: 400 });
@@ -152,7 +174,7 @@ export async function POST(request: NextRequest) {
   await connectDB();
   const post = await ForumPost.create({
     authorId: session.user.id,
-    category,
+    category: categoryKey,
     title,
     body: postBody,
     entityRef,

@@ -10,7 +10,7 @@ type RegisterBody = {
   phone?: string;
   password?: string;
   confirmPassword?: string;
-  role?: "student" | "landlord";
+  role?: "student" | "landlord" | "service_provider";
 };
 
 function isVerifiedStudentEmail(email: string): boolean {
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!["student", "landlord"].includes(role)) {
+  if (!["student", "landlord", "service_provider"].includes(role)) {
     return NextResponse.json({ error: "Invalid role selected." }, { status: 400 });
   }
 

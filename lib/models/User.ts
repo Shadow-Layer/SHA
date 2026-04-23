@@ -8,7 +8,7 @@ const UserSchema = new Schema(
     hashedPassword: { type: String, required: true },
     role: {
       type: String,
-      enum: ["student", "landlord", "admin"],
+      enum: ["student", "landlord", "service_provider", "admin"],
       required: true,
     },
     isVerifiedStudent: { type: Boolean, default: false },

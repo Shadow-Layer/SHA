@@ -8,6 +8,7 @@ import { getAuthSession } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
 import LandlordOutreachEvent from "@/lib/models/LandlordOutreachEvent";
 import Listing from "@/lib/models/Listing";
+import Notification from "@/lib/models/Notification";
 import User from "@/lib/models/User";
 
 type RouteContext = {
@@ -86,6 +87,17 @@ export async function POST(_: Request, { params }: RouteContext) {
     createdBy: session.user.id,
     createdAt: now,
   });
+
+  try {
+    void Notification.create({
+      userId: user._id,
+      type: "invite_sent",
+      message:
+        "You've been invited to list your property on SHA. Check your email or WhatsApp for the claim link.",
+      relatedId: String(listing._id),
+      relatedType: "listing",
+    }).catch(() => {});
+  } catch {}
 
   return NextResponse.json({ inviteUrl: `/claim/${rawToken}` });
 }

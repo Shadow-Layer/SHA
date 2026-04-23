@@ -5,23 +5,16 @@ import NewPostModal from "@/components/forum/NewPostModal";
 import { Button } from "@/components/ui/button";
 import { getAuthSession } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
+import { FORUM_CATEGORIES, FORUM_CATEGORY_CONFIG } from "@/lib/forum";
 import ForumComment from "@/lib/models/ForumComment";
 import ForumPost from "@/lib/models/ForumPost";
+import ServiceProvider from "@/lib/models/ServiceProvider";
 import User from "@/lib/models/User";
 
 type ForumCategoryPageProps = {
   params: { category: string };
   searchParams: { sort?: string; entityType?: string; entityId?: string };
 };
-
-const CATEGORIES = [
-  "houses",
-  "landlords",
-  "locations",
-  "amenities",
-  "service_providers",
-  "general",
-] as const;
 
 function formatTimeAgo(value: Date | string) {
   const date = value instanceof Date ? value : new Date(value);
@@ -42,17 +35,25 @@ function formatTimeAgo(value: Date | string) {
 
 export default async function ForumCategoryPage({ params, searchParams }: ForumCategoryPageProps) {
   const category = params.category;
-  if (!CATEGORIES.includes(category as (typeof CATEGORIES)[number])) {
+  if (!FORUM_CATEGORIES.includes(category as (typeof FORUM_CATEGORIES)[number])) {
     notFound();
   }
+  const categoryKey = category as (typeof FORUM_CATEGORIES)[number];
+  const isServicesCategory = categoryKey === "services";
 
   const session = await getAuthSession();
   if (!session?.user) {
     redirect(`/auth/login?callbackUrl=/forum/${category}`);
   }
-  if (session.user.role !== "student") {
+  const canAccessCategory =
+    session.user.role === "student" ||
+    ((session.user.role === "landlord" || session.user.role === "service_provider") &&
+      isServicesCategory);
+  if (!canAccessCategory) {
     redirect("/dashboard");
   }
+  const canCreatePost =
+    session.user.role === "student" || (session.user.role === "landlord" && isServicesCategory);
 
   const sortByUpvotes = searchParams.sort === "upvotes";
   const entityType = searchParams.entityType;
@@ -76,13 +77,25 @@ export default async function ForumCategoryPage({ params, searchParams }: ForumC
 
   const postIds = sortedPosts.map((post) => post._id);
   const authorIds = Array.from(new Set(sortedPosts.map((post) => String(post.authorId))));
-  const [commentCounts, authors] = await Promise.all([
+  const [commentCounts, authors, providerAuthors] = await Promise.all([
     ForumComment.aggregate([{ $match: { postId: { $in: postIds }, status: "active" } }, { $group: { _id: "$postId", count: { $sum: 1 } } }]),
     User.find({ _id: { $in: authorIds } }).select({ _id: 1, name: 1, email: 1 }).lean().exec(),
+    category === "services"
+      ? ServiceProvider.find({ userId: { $in: authorIds } })
+          .select({ _id: 1, userId: 1, businessName: 1 })
+          .lean()
+          .exec()
+      : Promise.resolve([]),
   ]);
 
   const commentCountMap = new Map(commentCounts.map((item) => [String(item._id), Number(item.count) || 0]));
   const authorMap = new Map(authors.map((author) => [String(author._id), author]));
+  const providerAuthorMap = new Map(
+    providerAuthors.map((provider) => [
+      String(provider.userId),
+      typeof provider.businessName === "string" ? provider.businessName : "",
+    ]),
+  );
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10">
@@ -90,13 +103,13 @@ export default async function ForumCategoryPage({ params, searchParams }: ForumC
         <aside className="rounded-xl border bg-card p-4 shadow-sm">
           <h2 className="text-sm font-semibold uppercase text-muted-foreground">Categories</h2>
           <div className="mt-3 space-y-1 text-sm">
-            {CATEGORIES.map((item) => (
+            {FORUM_CATEGORIES.map((item) => (
               <Link
                 key={item}
                 href={`/forum/${item}`}
                 className={`block rounded px-2 py-1 ${item === category ? "bg-muted font-medium" : ""}`}
               >
-                {item.replace("_", " ")}
+                {FORUM_CATEGORY_CONFIG[item].label}
               </Link>
             ))}
           </div>
@@ -104,7 +117,12 @@ export default async function ForumCategoryPage({ params, searchParams }: ForumC
 
         <section className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-2xl font-semibold capitalize">{category.replace("_", " ")}</h1>
+            <div>
+              <h1 className="text-2xl font-semibold">{FORUM_CATEGORY_CONFIG[categoryKey].label}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {FORUM_CATEGORY_CONFIG[categoryKey].description}
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               <Button asChild variant={!sortByUpvotes ? "default" : "outline"}>
                 <Link href={`/forum/${category}?sort=recent`}>Recent</Link>
@@ -112,11 +130,13 @@ export default async function ForumCategoryPage({ params, searchParams }: ForumC
               <Button asChild variant={sortByUpvotes ? "default" : "outline"}>
                 <Link href={`/forum/${category}?sort=upvotes`}>Most Upvoted</Link>
               </Button>
-              <NewPostModal
-                defaultCategory={category}
-                defaultEntityType={entityType}
-                defaultEntityId={entityId}
-              />
+              {canCreatePost ? (
+                <NewPostModal
+                  defaultCategory={category}
+                  defaultEntityType={entityType}
+                  defaultEntityId={entityId}
+                />
+              ) : null}
             </div>
           </div>
 
@@ -138,7 +158,8 @@ export default async function ForumCategoryPage({ params, searchParams }: ForumC
                   <p className="mt-3 text-xs text-muted-foreground">
                     {commentCountMap.get(String(post._id)) || 0} comments ·{" "}
                     {Array.isArray(post.upvotes) ? post.upvotes.length : 0} upvotes ·{" "}
-                    {authorMap.get(String(post.authorId))?.name ||
+                    {(categoryKey === "services" ? providerAuthorMap.get(String(post.authorId)) : "") ||
+                      authorMap.get(String(post.authorId))?.name ||
                       authorMap.get(String(post.authorId))?.email ||
                       "Anonymous"}{" "}
                     · {formatTimeAgo(post.createdAt instanceof Date ? post.createdAt : new Date())}

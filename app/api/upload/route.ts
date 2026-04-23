@@ -6,7 +6,10 @@ import { randomUUID } from "node:crypto";
 
 export async function POST(request: NextRequest) {
   try {
-    await getServerSession(authOptions as NextAuthOptions);
+    const session = await getServerSession(authOptions as NextAuthOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const formData = await request.formData();
     const file = formData.get("file");

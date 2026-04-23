@@ -4,21 +4,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FORUM_CATEGORIES, FORUM_CATEGORY_CONFIG } from "@/lib/forum";
 
 type NewPostModalProps = {
   defaultCategory: string;
   defaultEntityType?: string;
   defaultEntityId?: string;
 };
-
-const CATEGORIES = [
-  "houses",
-  "landlords",
-  "locations",
-  "amenities",
-  "service_providers",
-  "general",
-] as const;
 
 export default function NewPostModal({
   defaultCategory,
@@ -86,9 +78,9 @@ export default function NewPostModal({
               value={category}
               onChange={(event) => setCategory(event.target.value)}
             >
-              {CATEGORIES.map((item) => (
+              {FORUM_CATEGORIES.map((item) => (
                 <option key={item} value={item}>
-                  {item}
+                  {FORUM_CATEGORY_CONFIG[item].label}
                 </option>
               ))}
             </select>

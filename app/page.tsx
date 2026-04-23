@@ -83,14 +83,26 @@ export default function Home() {
           <Button size="lg" variant="outline" asChild>
             <Link href="/submit-lead">Share a Lead →</Link>
           </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-800"
+            asChild
+          >
+            <Link href="/providers/join">Earn with SHA</Link>
+          </Button>
         </div>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Offer your services to students and landlords in Mutare.
+        </p>
       </section>
 
-      <section className="mt-6 grid grid-cols-1 gap-3 rounded-xl border bg-card p-5 text-sm font-medium sm:grid-cols-2 lg:grid-cols-4">
+      <section className="mt-6 grid grid-cols-1 gap-3 rounded-xl border bg-card p-5 text-sm font-medium sm:grid-cols-2 lg:grid-cols-5">
         <p>No Agent Fees</p>
         <p>Verified Listings</p>
         <p>Real Reviews</p>
         <p>Inbox Messaging</p>
+        <p>Service Providers</p>
       </section>
     </main>
   );

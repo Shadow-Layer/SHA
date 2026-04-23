@@ -18,7 +18,12 @@ export async function GET(request: NextRequest) {
   );
 
   const query: Record<string, unknown> = {};
-  if (role === "student" || role === "landlord" || role === "admin") {
+  if (
+    role === "student" ||
+    role === "landlord" ||
+    role === "service_provider" ||
+    role === "admin"
+  ) {
     query.role = role;
   }
   if (q) {

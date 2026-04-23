@@ -195,18 +195,28 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     },
   ).exec();
 
-  const admins = await User.find({ role: "admin" }).select({ _id: 1 }).lean().exec();
-  if (admins.length > 0) {
-    await Notification.insertMany(
-      admins.map((admin) => ({
-        userId: admin._id,
-        message: `A landlord has completed onboarding. Review: ${listing.title}`,
-        type: "listing_ready_for_review",
-        relatedId: String(listing._id),
-        relatedType: "listing",
-      })),
-    );
-  }
+  try {
+    void User.find({ role: "admin" })
+      .select("_id")
+      .lean()
+      .exec()
+      .then((admins) => {
+        if (admins.length === 0) {
+          return;
+        }
+
+        return Notification.insertMany(
+          admins.map((admin) => ({
+            userId: admin._id,
+            type: "listing_ready_for_review",
+            message: `A landlord has submitted their listing for review: ${listing.title}`,
+            relatedId: String(listing._id),
+            relatedType: "listing",
+          })),
+        );
+      })
+      .catch(() => {});
+  } catch {}
 
   return NextResponse.json({ ok: true, listingId: String(listing._id) });
 }

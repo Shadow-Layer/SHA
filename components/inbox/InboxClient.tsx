@@ -25,7 +25,7 @@ type Message = {
 
 type InboxClientProps = {
   currentUserId: string;
-  role: "student" | "landlord" | "admin";
+  role: "student" | "landlord" | "service_provider" | "admin";
   conversations: Conversation[];
   initialConversationId: string | null;
   initialMessages: Message[];

@@ -4,7 +4,7 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role: "student" | "landlord" | "admin";
+      role: "student" | "landlord" | "service_provider" | "admin";
       isVerifiedStudent: boolean;
       isInvited?: boolean;
       onboardingCompleted?: boolean;
@@ -13,7 +13,7 @@ declare module "next-auth" {
   }
 
   interface User {
-    role: "student" | "landlord" | "admin";
+    role: "student" | "landlord" | "service_provider" | "admin";
     isVerifiedStudent: boolean;
     isInvited?: boolean;
     onboardingCompleted?: boolean;
@@ -24,7 +24,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     userId: string;
-    role: "student" | "landlord" | "admin";
+    role: "student" | "landlord" | "service_provider" | "admin";
     isVerifiedStudent: boolean;
     isInvited?: boolean;
     onboardingCompleted?: boolean;
