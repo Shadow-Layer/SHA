@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { STUDENT_ONLY_FORUM_ACCESS_MESSAGE } from "@/lib/forum";
 
 type Comment = {
   id: string;
@@ -66,6 +67,9 @@ export default function PostDetailClient({
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error(STUDENT_ONLY_FORUM_ACCESS_MESSAGE);
+        }
         throw new Error(data.error || "Unable to add comment");
       }
       setNewComment("");
@@ -84,6 +88,9 @@ export default function PostDetailClient({
       const response = await fetch(`/api/forum/posts/${postId}/upvote`, { method: "POST" });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error(STUDENT_ONLY_FORUM_ACCESS_MESSAGE);
+        }
         throw new Error(data.error || "Unable to upvote");
       }
       router.refresh();

@@ -181,6 +181,7 @@ export default function AdminImportedLeadsClient() {
     Record<string, { contactStatus: ActionStatus; contactMethod: ContactMethod; notes: string }>
   >({});
   const [inviteLinks, setInviteLinks] = useState<Record<string, string>>({});
+  const [inviteDeliveryById, setInviteDeliveryById] = useState<Record<string, string | null>>({});
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -306,12 +307,20 @@ export default function AdminImportedLeadsClient() {
       const response = await fetch(`/api/admin/imported-leads/${row.userId}/invite`, {
         method: "POST",
       });
-      const data = (await response.json()) as { inviteUrl?: string; error?: string };
+      const data = (await response.json()) as {
+        inviteUrl?: string;
+        delivery?: { email?: string | null };
+        error?: string;
+      };
       if (!response.ok || !data.inviteUrl) {
         throw new Error(data.error || "Unable to generate invite.");
       }
 
       setInviteLinks((current) => ({ ...current, [row.userId]: data.inviteUrl || "" }));
+      setInviteDeliveryById((current) => ({
+        ...current,
+        [row.userId]: data.delivery?.email ?? null,
+      }));
       await loadRows();
       if (selectedLead?.userId === row.userId) {
         await loadEvents(row.userId);
@@ -333,6 +342,21 @@ export default function AdminImportedLeadsClient() {
       await navigator.clipboard.writeText(inviteUrl);
     } catch {
       setError("Unable to copy invite link.");
+    }
+  }
+
+  function renderInviteDeliveryBadge(delivery: string | null) {
+    switch (delivery) {
+      case "sent":
+        return <span className="text-xs text-emerald-700">Email sent ✓</span>;
+      case "skipped":
+        return <span className="text-xs text-amber-700">No email on file — copy link manually</span>;
+      case "not_configured":
+        return <span className="text-xs text-amber-700">Not configured — copy link manually</span>;
+      case "failed":
+        return <span className="text-xs text-red-600">Email delivery failed — copy link manually</span>;
+      default:
+        return null;
     }
   }
 
@@ -369,6 +393,7 @@ export default function AdminImportedLeadsClient() {
             {rows.map((row) => {
               const draft = statusDrafts[row.userId] ?? getDefaultDraft(row);
               const inviteUrl = inviteLinks[row.userId];
+              const inviteDelivery = inviteDeliveryById[row.userId] ?? null;
               const inviteAllowed = canSendInvite(row);
 
               return (
@@ -529,15 +554,22 @@ export default function AdminImportedLeadsClient() {
                       </div>
 
                       {inviteUrl ? (
-                        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-background px-3 py-2">
-                          <input
-                            className="min-w-[320px] flex-1 bg-transparent text-xs outline-none"
-                            readOnly
-                            value={inviteUrl}
-                          />
-                          <Button size="sm" variant="outline" onClick={() => void handleCopyInvite(row.userId)}>
-                            Copy
-                          </Button>
+                        <div className="space-y-2 rounded-md border bg-background px-3 py-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <input
+                              className="min-w-[320px] flex-1 bg-transparent text-xs outline-none"
+                              readOnly
+                              value={inviteUrl}
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void handleCopyInvite(row.userId)}
+                            >
+                              Copy
+                            </Button>
+                          </div>
+                          {renderInviteDeliveryBadge(inviteDelivery)}
                         </div>
                       ) : null}
                     </div>

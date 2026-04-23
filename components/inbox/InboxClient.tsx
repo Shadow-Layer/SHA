@@ -499,124 +499,130 @@ export default function InboxClient({
   }, [ablyReady, currentUserId, markConversationRead, selectedConversationId, updateConversationPreview]);
 
   return (
-    <section className="mt-6 grid gap-4 lg:grid-cols-[320px_1fr]">
-      <aside className="rounded-xl border bg-card p-4 shadow-sm">
-        <h2 className="text-lg font-semibold">Conversations</h2>
-        <div className="mt-4 space-y-2">
-          {conversationList.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No conversations yet.</p>
-          ) : (
-            conversationList.map((conversation) => (
-              <button
-                key={conversation.id}
-                type="button"
-                className={`w-full rounded-md border p-3 text-left text-sm ${
-                  selectedConversationId === conversation.id ? "border-primary" : "border-border"
-                }`}
-                onClick={() => {
-                  setSelectedConversationId(conversation.id);
-                  setError(null);
+    <section className="mt-6 space-y-4">
+      <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 shadow-sm">
+        Messages are not delivered in real time. Refresh the page to see new messages.
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+        <aside className="rounded-xl border bg-card p-4 shadow-sm">
+          <h2 className="text-lg font-semibold">Conversations</h2>
+          <div className="mt-4 space-y-2">
+            {conversationList.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No conversations yet.</p>
+            ) : (
+              conversationList.map((conversation) => (
+                <button
+                  key={conversation.id}
+                  type="button"
+                  className={`w-full rounded-md border p-3 text-left text-sm ${
+                    selectedConversationId === conversation.id ? "border-primary" : "border-border"
+                  }`}
+                  onClick={() => {
+                    setSelectedConversationId(conversation.id);
+                    setError(null);
+                  }}
+                >
+                  <p className="font-medium">{conversation.listingTitle}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {role === "student" ? conversation.landlordName : conversation.studentName}
+                  </p>
+                  <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                    {conversation.lastMessage || "No messages yet"}
+                  </p>
+                </button>
+              ))
+            )}
+          </div>
+        </aside>
+
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          {selectedConversation ? (
+            <>
+              <header className="border-b pb-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-semibold">Re: {selectedConversation.listingTitle}</h2>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void loadMessages(selectedConversation.id)}
+                    disabled={loading}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {isOtherUserOnline ? "Online now" : "Offline"}
+                  {isOtherUserTyping ? " • Typing…" : ""}
+                  {!ablyReady && ablyFailed ? " • Manual refresh mode" : ""}
+                </p>
+              </header>
+              <div className="mt-4 space-y-3">
+                {messages.map((message) => {
+                  const isCurrentUserMessage = message.senderId === currentUserId;
+
+                  return (
+                    <div
+                      key={message.id}
+                      className={`rounded-md border p-3 text-sm ${
+                        isCurrentUserMessage ? "bg-muted" : "bg-background"
+                      }`}
+                    >
+                      <p>{message.body}</p>
+                      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                        <span>{formatDate(message.createdAt)}</span>
+                        {isCurrentUserMessage ? <span>{message.readAt ? "Read" : "Sent"}</span> : null}
+                      </div>
+                    </div>
+                  );
+                })}
+                {!messages.length ? (
+                  <p className="text-sm text-muted-foreground">No messages in this conversation yet.</p>
+                ) : null}
+              </div>
+
+              <form
+                className="mt-4 space-y-3 border-t pt-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void sendMessage();
                 }}
               >
-                <p className="font-medium">{conversation.listingTitle}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {role === "student" ? conversation.landlordName : conversation.studentName}
-                </p>
-                <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                  {conversation.lastMessage || "No messages yet"}
-                </p>
-              </button>
-            ))
-          )}
-        </div>
-      </aside>
+                <label className="block text-sm font-medium">
+                  Message
+                  <textarea
+                    rows={3}
+                    className="mt-2 w-full rounded-md border px-3 py-2 text-sm"
+                    value={messageBody}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setMessageBody(value);
 
-      <div className="rounded-xl border bg-card p-4 shadow-sm">
-        {selectedConversation ? (
-          <>
-            <header className="border-b pb-3">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold">Re: {selectedConversation.listingTitle}</h2>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void loadMessages(selectedConversation.id)}
-                  disabled={loading}
-                >
-                  Refresh
+                      if (!ablyReady || !selectedConversationId) {
+                        return;
+                      }
+
+                      void publishTyping(Boolean(value.trim()));
+                      if (typingTimeoutRef.current) {
+                        clearTimeout(typingTimeoutRef.current);
+                      }
+                      typingTimeoutRef.current = setTimeout(() => {
+                        void publishTyping(false);
+                      }, 1200);
+                    }}
+                  />
+                </label>
+                <Button type="submit" disabled={loading || sending || !messageBody.trim()}>
+                  {sending ? "Sending..." : "Send"}
                 </Button>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {isOtherUserOnline ? "Online now" : "Offline"}
-                {isOtherUserTyping ? " • Typing…" : ""}
-                {!ablyReady && ablyFailed ? " • Manual refresh mode" : ""}
-              </p>
-            </header>
-            <div className="mt-4 space-y-3">
-              {messages.map((message) => {
-                const isCurrentUserMessage = message.senderId === currentUserId;
-
-                return (
-                  <div
-                    key={message.id}
-                    className={`rounded-md border p-3 text-sm ${
-                      isCurrentUserMessage ? "bg-muted" : "bg-background"
-                    }`}
-                  >
-                    <p>{message.body}</p>
-                    <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                      <span>{formatDate(message.createdAt)}</span>
-                      {isCurrentUserMessage ? <span>{message.readAt ? "Read" : "Sent"}</span> : null}
-                    </div>
-                  </div>
-                );
-              })}
-              {!messages.length ? (
-                <p className="text-sm text-muted-foreground">No messages in this conversation yet.</p>
-              ) : null}
-            </div>
-
-            <form
-              className="mt-4 space-y-3 border-t pt-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void sendMessage();
-              }}
-            >
-              <label className="block text-sm font-medium">
-                Message
-                <textarea
-                  rows={3}
-                  className="mt-2 w-full rounded-md border px-3 py-2 text-sm"
-                  value={messageBody}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setMessageBody(value);
-
-                    if (!ablyReady || !selectedConversationId) {
-                      return;
-                    }
-
-                    void publishTyping(Boolean(value.trim()));
-                    if (typingTimeoutRef.current) {
-                      clearTimeout(typingTimeoutRef.current);
-                    }
-                    typingTimeoutRef.current = setTimeout(() => {
-                      void publishTyping(false);
-                    }, 1200);
-                  }}
-                />
-              </label>
-              <Button type="submit" disabled={loading || sending || !messageBody.trim()}>
-                {sending ? "Sending..." : "Send"}
-              </Button>
-            </form>
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">Select a conversation to view messages.</p>
-        )}
-        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+              </form>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Select a conversation to view messages.</p>
+          )}
+          {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+        </div>
       </div>
     </section>
   );

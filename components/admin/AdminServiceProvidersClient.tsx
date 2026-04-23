@@ -61,7 +61,7 @@ type ServiceProviderRow = {
   lastContactMethod: "call" | "whatsapp" | "in_person" | null;
   lastContactNotes: string;
   consentGiven: boolean;
-  source: "self_signup" | "admin_created";
+  source: "self_signup" | "admin_created" | "pdf_import";
   createdAt: string | null;
   updatedAt: string | null;
 };
@@ -176,6 +176,8 @@ export default function AdminServiceProvidersClient() {
   const [workingId, setWorkingId] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<ServiceProviderRow | null>(null);
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+  const [inviteLinksById, setInviteLinksById] = useState<Record<string, string>>({});
+  const [inviteDeliveryById, setInviteDeliveryById] = useState<Record<string, string | null>>({});
   const [events, setEvents] = useState<OutreachEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState<string | null>(null);
@@ -315,13 +317,22 @@ export default function AdminServiceProvidersClient() {
       const response = await fetch(`/api/admin/service-providers/${providerId}/invite`, {
         method: "POST",
       });
-      const data = (await response.json()) as { claimUrl?: string; error?: string };
+      const data = (await response.json()) as {
+        claimUrl?: string;
+        delivery?: { email?: string | null };
+        error?: string;
+      };
       if (!response.ok || !data.claimUrl) {
         throw new Error(data.error || "Unable to generate invite link.");
       }
 
       const claimUrl = new URL(data.claimUrl, window.location.origin).toString();
       await navigator.clipboard.writeText(claimUrl);
+      setInviteLinksById((current) => ({ ...current, [providerId]: data.claimUrl ?? "" }));
+      setInviteDeliveryById((current) => ({
+        ...current,
+        [providerId]: data.delivery?.email ?? null,
+      }));
       setCopiedInviteId(providerId);
       window.setTimeout(() => {
         setCopiedInviteId((current) => (current === providerId ? null : current));
@@ -337,6 +348,35 @@ export default function AdminServiceProvidersClient() {
       );
     } finally {
       setWorkingId(null);
+    }
+  }
+
+  async function handleCopyInvite(providerId: string) {
+    const inviteUrl = inviteLinksById[providerId];
+    if (!inviteUrl) {
+      return;
+    }
+
+    try {
+      const absoluteUrl = new URL(inviteUrl, window.location.origin).toString();
+      await navigator.clipboard.writeText(absoluteUrl);
+    } catch {
+      setError("Unable to copy invite link.");
+    }
+  }
+
+  function renderInviteDeliveryBadge(delivery: string | null) {
+    switch (delivery) {
+      case "sent":
+        return <span className="text-xs text-emerald-700">Email sent ✓</span>;
+      case "skipped":
+        return <span className="text-xs text-amber-700">No email on file — copy link manually</span>;
+      case "not_configured":
+        return <span className="text-xs text-amber-700">Not configured — copy link manually</span>;
+      case "failed":
+        return <span className="text-xs text-red-600">Email delivery failed — copy link manually</span>;
+      default:
+        return null;
     }
   }
   return (
@@ -373,8 +413,12 @@ export default function AdminServiceProvidersClient() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b align-top">
+            {rows.map((row) => {
+              const inviteUrl = inviteLinksById[row.id];
+              const inviteDelivery = inviteDeliveryById[row.id] ?? null;
+
+              return (
+                <tr key={row.id} className="border-b align-top">
                 <td className="py-3 pr-4">
                   <p className="font-medium">{row.businessName}</p>
                   <p className="text-muted-foreground">{row.contactName || "No contact name"}</p>
@@ -427,72 +471,98 @@ export default function AdminServiceProvidersClient() {
                 {!isUnclaimedTab ? <td className="py-3 pr-4">{formatDate(row.createdAt)}</td> : null}
 
                 <td className="py-3 pr-4">
-                  <div className="flex flex-wrap gap-2">
-                    {isUnclaimedTab ? (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={workingId === row.id}
-                          onClick={() => void generateInvite(row.id)}
-                        >
-                          {copiedInviteId === row.id ? "Copied!" : "Generate Invite Link"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={workingId === row.id}
-                          onClick={() => void updateContactStatus(row.id, "contacted")}
-                        >
-                          Mark Contacted
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={workingId === row.id}
-                          onClick={() => void updateContactStatus(row.id, "interested")}
-                        >
-                          Mark Interested
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={workingId === row.id}
-                          onClick={() => void updateContactStatus(row.id, "declined")}
-                        >
-                          Mark Declined
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setSelectedProvider(row)}>
-                          View
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button size="sm" variant="outline" onClick={() => setSelectedProvider(row)}>
-                          View
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={workingId === row.id || row.status === "published"}
-                          onClick={() => void updateStatus(row.id, "published")}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={workingId === row.id || row.status === "removed"}
-                          onClick={() => void updateStatus(row.id, "removed")}
-                        >
-                          Remove
-                        </Button>
-                      </>
-                    )}
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      {isUnclaimedTab ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={workingId === row.id}
+                            onClick={() => void generateInvite(row.id)}
+                          >
+                            {copiedInviteId === row.id ? "Copied!" : "Generate Invite Link"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={workingId === row.id}
+                            onClick={() => void updateContactStatus(row.id, "contacted")}
+                          >
+                            Mark Contacted
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={workingId === row.id}
+                            onClick={() => void updateContactStatus(row.id, "interested")}
+                          >
+                            Mark Interested
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={workingId === row.id}
+                            onClick={() => void updateContactStatus(row.id, "declined")}
+                          >
+                            Mark Declined
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedProvider(row)}
+                          >
+                            View
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => setSelectedProvider(row)}>
+                            View
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={workingId === row.id || row.status === "published"}
+                            onClick={() => void updateStatus(row.id, "published")}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={workingId === row.id || row.status === "removed"}
+                            onClick={() => void updateStatus(row.id, "removed")}
+                          >
+                            Remove
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                    {isUnclaimedTab && inviteUrl ? (
+                      <div className="space-y-2 rounded-md border bg-background px-3 py-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            className="min-w-[320px] flex-1 bg-transparent text-xs outline-none"
+                            readOnly
+                            value={new URL(inviteUrl, window.location.origin).toString()}
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handleCopyInvite(row.id)}
+                          >
+                            Copy
+                          </Button>
+                        </div>
+                        {renderInviteDeliveryBadge(inviteDelivery)}
+                      </div>
+                    ) : null}
                   </div>
                 </td>
-              </tr>
-            ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

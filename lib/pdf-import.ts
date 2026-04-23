@@ -12,6 +12,17 @@ export type ImportRow = {
   rentalCharges?: string | null;
 };
 
+export type SPImportRow = {
+  businessName: string;
+  phone: string;
+  contactName?: string | null;
+  category?: string | null;
+  areasServed?: string | null;
+  description?: string | null;
+  priceRange?: string | null;
+  email?: string | null;
+};
+
 const AMENITY_PATTERNS: Array<{ amenity: string; pattern: RegExp }> = [
   { amenity: "wifi", pattern: /\bwi[\s-]?fi\b/i },
   { amenity: "borehole", pattern: /\bborehole\b/i },
@@ -26,6 +37,74 @@ const AMENITY_PATTERNS: Array<{ amenity: string; pattern: RegExp }> = [
 
 export function normalizePhoneDigits(value: string) {
   return value.replace(/\D/g, "");
+}
+
+export function normalizeSPCategory(value: string | null | undefined) {
+  const normalized = normalizeFreeText(value).toLowerCase();
+
+  if (!normalized) {
+    return "other" as const;
+  }
+
+  if (
+    normalized.includes("wifi") ||
+    normalized.includes("wi-fi") ||
+    normalized.includes("internet") ||
+    normalized.includes("broadband")
+  ) {
+    return "wifi_internet" as const;
+  }
+
+  if (
+    normalized.includes("transport") ||
+    normalized.includes("taxi") ||
+    normalized.includes("shuttle") ||
+    normalized.includes("bus") ||
+    normalized.includes("travel")
+  ) {
+    return "transport" as const;
+  }
+
+  if (
+    normalized.includes("move") ||
+    normalized.includes("relocat") ||
+    normalized.includes("removal")
+  ) {
+    return "moving" as const;
+  }
+
+  if (
+    normalized.includes("clean") ||
+    normalized.includes("laundry") ||
+    normalized.includes("housekeep")
+  ) {
+    return "cleaning" as const;
+  }
+
+  if (
+    normalized.includes("repair") ||
+    normalized.includes("handyman") ||
+    normalized.includes("plumb") ||
+    normalized.includes("electric") ||
+    normalized.includes("maint")
+  ) {
+    return "repairs_handyman" as const;
+  }
+
+  if (
+    normalized.includes("food") ||
+    normalized.includes("cater") ||
+    normalized.includes("meal") ||
+    normalized.includes("kitchen")
+  ) {
+    return "food_catering" as const;
+  }
+
+  if (normalized.includes("security") || normalized.includes("guard")) {
+    return "security" as const;
+  }
+
+  return "other" as const;
 }
 
 export function parseCapacity(value: ImportRow["capacity"]) {

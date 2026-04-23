@@ -4,7 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { FORUM_CATEGORIES, FORUM_CATEGORY_CONFIG } from "@/lib/forum";
+import {
+  FORUM_CATEGORIES,
+  FORUM_CATEGORY_CONFIG,
+  STUDENT_ONLY_FORUM_ACCESS_MESSAGE,
+} from "@/lib/forum";
 
 type NewPostModalProps = {
   defaultCategory: string;
@@ -57,6 +61,9 @@ export default function NewPostModal({
               });
               const data = (await response.json()) as { error?: string };
               if (!response.ok) {
+                if (response.status === 403) {
+                  throw new Error(STUDENT_ONLY_FORUM_ACCESS_MESSAGE);
+                }
                 throw new Error(data.error || "Unable to create post");
               }
 

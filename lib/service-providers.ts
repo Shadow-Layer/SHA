@@ -33,6 +33,7 @@ export const SERVICE_PROVIDER_CONTACT_STATUSES = [
   "claimed",
 ] as const;
 export const SERVICE_PROVIDER_OUTREACH_METHODS = ["call", "whatsapp", "in_person"] as const;
+export const SERVICE_PROVIDER_SOURCES = ["self_signup", "admin_created", "pdf_import"] as const;
 
 export type PreferredContact = (typeof SERVICE_PROVIDER_CONTACT_METHODS)[number];
 export type ServiceCategory = (typeof SERVICE_PROVIDER_CATEGORIES)[number];
@@ -84,6 +85,7 @@ const TARGET_OPTIONS = new Set<string>(SERVICE_PROVIDER_TARGET_CUSTOMERS);
 const STATUSES = new Set<string>(SERVICE_PROVIDER_STATUSES);
 const CONTACT_STATUSES = new Set<string>(SERVICE_PROVIDER_CONTACT_STATUSES);
 const OUTREACH_METHODS = new Set<string>(SERVICE_PROVIDER_OUTREACH_METHODS);
+const SOURCES = new Set<string>(SERVICE_PROVIDER_SOURCES);
 
 function trimString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -241,6 +243,10 @@ export function toServiceProviderResponse(provider: Record<string, unknown>) {
         : typeof provider.updatedAt === "string"
           ? provider.updatedAt
           : null,
+    source:
+      typeof provider.source === "string" && SOURCES.has(provider.source)
+        ? provider.source
+        : "self_signup",
   };
 }
 

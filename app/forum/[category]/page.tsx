@@ -5,7 +5,11 @@ import NewPostModal from "@/components/forum/NewPostModal";
 import { Button } from "@/components/ui/button";
 import { getAuthSession } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
-import { FORUM_CATEGORIES, FORUM_CATEGORY_CONFIG } from "@/lib/forum";
+import {
+  FORUM_CATEGORIES,
+  FORUM_CATEGORY_CONFIG,
+  STUDENT_ONLY_FORUM_ACCESS_MESSAGE,
+} from "@/lib/forum";
 import ForumComment from "@/lib/models/ForumComment";
 import ForumPost from "@/lib/models/ForumPost";
 import ServiceProvider from "@/lib/models/ServiceProvider";
@@ -14,6 +18,20 @@ import User from "@/lib/models/User";
 type ForumCategoryPageProps = {
   params: { category: string };
   searchParams: { sort?: string; entityType?: string; entityId?: string };
+};
+
+type ForumCategoryPost = {
+  _id: unknown;
+  authorId: unknown;
+  body: string;
+  category: string;
+  createdAt?: Date | string;
+  entityRef?: {
+    id?: string;
+    type?: string;
+  } | null;
+  title: string;
+  upvotes?: unknown[];
 };
 
 function formatTimeAgo(value: Date | string) {
@@ -49,53 +67,73 @@ export default async function ForumCategoryPage({ params, searchParams }: ForumC
     session.user.role === "student" ||
     ((session.user.role === "landlord" || session.user.role === "service_provider") &&
       isServicesCategory);
-  if (!canAccessCategory) {
-    redirect("/dashboard");
-  }
   const canCreatePost =
     session.user.role === "student" || (session.user.role === "landlord" && isServicesCategory);
+  const showStudentOnlyAccessNote =
+    !canAccessCategory &&
+    (session.user.role === "landlord" || session.user.role === "admin");
+
+  if (!canAccessCategory && !showStudentOnlyAccessNote) {
+    redirect("/dashboard");
+  }
 
   const sortByUpvotes = searchParams.sort === "upvotes";
   const entityType = searchParams.entityType;
   const entityId = searchParams.entityId;
 
-  await connectDB();
-  const query: Record<string, unknown> = { status: "active", category };
-  if (entityType && entityId) {
-    query["entityRef.type"] = entityType;
-    query["entityRef.id"] = entityId;
+  let sortedPosts: ForumCategoryPost[] = [];
+  let commentCountMap = new Map<string, number>();
+  let authorMap = new Map<string, { _id: unknown; name?: string; email?: string }>();
+  let providerAuthorMap = new Map<string, string>();
+
+  if (!showStudentOnlyAccessNote) {
+    await connectDB();
+    const query: Record<string, unknown> = { status: "active", category };
+    if (entityType && entityId) {
+      query["entityRef.type"] = entityType;
+      query["entityRef.id"] = entityId;
+    }
+
+    const posts = (await ForumPost.find(query)
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean()
+      .exec()) as ForumCategoryPost[];
+    sortedPosts = sortByUpvotes
+      ? [...posts].sort((a, b) => {
+          const aVotes = Array.isArray(a.upvotes) ? a.upvotes.length : 0;
+          const bVotes = Array.isArray(b.upvotes) ? b.upvotes.length : 0;
+          return bVotes - aVotes;
+        })
+      : posts;
+
+    const postIds = sortedPosts.map((post) => post._id);
+    const authorIds = Array.from(new Set(sortedPosts.map((post) => String(post.authorId))));
+    const [commentCounts, authors, providerAuthors] = await Promise.all([
+      ForumComment.aggregate([
+        { $match: { postId: { $in: postIds }, status: "active" } },
+        { $group: { _id: "$postId", count: { $sum: 1 } } },
+      ]),
+      User.find({ _id: { $in: authorIds } }).select({ _id: 1, name: 1, email: 1 }).lean().exec(),
+      category === "services"
+        ? ServiceProvider.find({ userId: { $in: authorIds } })
+            .select({ _id: 1, userId: 1, businessName: 1 })
+            .lean()
+            .exec()
+        : Promise.resolve([]),
+    ]);
+
+    commentCountMap = new Map(
+      commentCounts.map((item) => [String(item._id), Number(item.count) || 0]),
+    );
+    authorMap = new Map(authors.map((author) => [String(author._id), author]));
+    providerAuthorMap = new Map(
+      providerAuthors.map((provider) => [
+        String(provider.userId),
+        typeof provider.businessName === "string" ? provider.businessName : "",
+      ]),
+    );
   }
-
-  const posts = await ForumPost.find(query).sort({ createdAt: -1 }).limit(50).lean().exec();
-  const sortedPosts = sortByUpvotes
-    ? [...posts].sort((a, b) => {
-        const aVotes = Array.isArray(a.upvotes) ? a.upvotes.length : 0;
-        const bVotes = Array.isArray(b.upvotes) ? b.upvotes.length : 0;
-        return bVotes - aVotes;
-      })
-    : posts;
-
-  const postIds = sortedPosts.map((post) => post._id);
-  const authorIds = Array.from(new Set(sortedPosts.map((post) => String(post.authorId))));
-  const [commentCounts, authors, providerAuthors] = await Promise.all([
-    ForumComment.aggregate([{ $match: { postId: { $in: postIds }, status: "active" } }, { $group: { _id: "$postId", count: { $sum: 1 } } }]),
-    User.find({ _id: { $in: authorIds } }).select({ _id: 1, name: 1, email: 1 }).lean().exec(),
-    category === "services"
-      ? ServiceProvider.find({ userId: { $in: authorIds } })
-          .select({ _id: 1, userId: 1, businessName: 1 })
-          .lean()
-          .exec()
-      : Promise.resolve([]),
-  ]);
-
-  const commentCountMap = new Map(commentCounts.map((item) => [String(item._id), Number(item.count) || 0]));
-  const authorMap = new Map(authors.map((author) => [String(author._id), author]));
-  const providerAuthorMap = new Map(
-    providerAuthors.map((provider) => [
-      String(provider.userId),
-      typeof provider.businessName === "string" ? provider.businessName : "",
-    ]),
-  );
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10">
@@ -141,7 +179,11 @@ export default async function ForumCategoryPage({ params, searchParams }: ForumC
           </div>
 
           <div className="mt-5 space-y-3">
-            {sortedPosts.length === 0 ? (
+            {showStudentOnlyAccessNote ? (
+              <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                {STUDENT_ONLY_FORUM_ACCESS_MESSAGE}
+              </div>
+            ) : sortedPosts.length === 0 ? (
               <p className="text-sm text-muted-foreground">No posts yet in this category.</p>
             ) : (
               sortedPosts.map((post) => (

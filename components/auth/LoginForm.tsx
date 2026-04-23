@@ -90,6 +90,10 @@ export default function LoginForm({ callbackUrl }: LoginFormProps) {
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? "Signing in..." : "Sign In"}
       </Button>
+
+      <p className="text-sm text-muted-foreground">
+        Forgot your password? Contact admin@sha.co.zw to reset it.
+      </p>
     </form>
   );
 }

@@ -13,6 +13,9 @@ export const FORUM_CATEGORIES = [
 
 export type ForumCategory = (typeof FORUM_CATEGORIES)[number];
 
+export const STUDENT_ONLY_FORUM_ACCESS_MESSAGE =
+  "The forum is currently available to verified students only. Landlord and admin access is coming in a future update.";
+
 export const FORUM_CATEGORY_CONFIG: Record<
   ForumCategory,
   { label: string; description: string }

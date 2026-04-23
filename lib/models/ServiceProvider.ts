@@ -15,7 +15,7 @@ const SERVICE_PROVIDER_CONTACT_METHODS = ["whatsapp", "call", "email"] as const;
 const SERVICE_PROVIDER_AVAILABILITY = ["always", "weekdays", "weekends", "on_request"] as const;
 const SERVICE_PROVIDER_TARGET_CUSTOMERS = ["students", "landlords", "both"] as const;
 const SERVICE_PROVIDER_STATUSES = ["pending_review", "published", "removed", "unclaimed"] as const;
-const SERVICE_PROVIDER_SOURCES = ["self_signup", "admin_created"] as const;
+const SERVICE_PROVIDER_SOURCES = ["self_signup", "admin_created", "pdf_import"] as const;
 const SERVICE_PROVIDER_CONTACT_STATUSES = [
   "not_contacted",
   "contacted",
@@ -101,6 +101,7 @@ const ServiceProviderSchema = new Schema(
       enum: SERVICE_PROVIDER_SOURCES,
       default: "self_signup",
     },
+    importBatchId: { type: String },
   },
   { timestamps: true },
 );
