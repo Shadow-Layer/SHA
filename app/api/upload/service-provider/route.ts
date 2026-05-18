@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession, NextAuthOptions } from "next-auth";
 
+import { authOptions } from "@/lib/auth";
 import { uploadToMega } from "@/lib/mega";
 
 type UploadWindow = {
@@ -21,23 +23,6 @@ const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 const rateLimitStore = global._serviceProviderUploadRateLimit ?? new Map<string, UploadWindow>();
 global._serviceProviderUploadRateLimit = rateLimitStore;
-
-function getClientKey(request: NextRequest) {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    const firstIp = forwardedFor.split(",")[0]?.trim();
-    if (firstIp) {
-      return firstIp;
-    }
-  }
-
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  if (realIp) {
-    return realIp;
-  }
-
-  return "unknown";
-}
 
 function isRateLimited(clientKey: string, now: number) {
   const current = rateLimitStore.get(clientKey);
@@ -62,8 +47,13 @@ function isRateLimited(clientKey: string, now: number) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions as NextAuthOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const now = Date.now();
-    const clientKey = getClientKey(request);
+    const clientKey = session.user?.id ?? session.user?.email ?? "unknown";
     if (isRateLimited(clientKey, now)) {
       return NextResponse.json(
         { error: "Too many uploads. Please wait a few minutes and try again." },

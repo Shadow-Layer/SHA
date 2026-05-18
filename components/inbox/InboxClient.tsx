@@ -564,7 +564,7 @@ export default function InboxClient({
                   {!ablyReady && ablyFailed ? " • Manual refresh mode" : ""}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Messages are delivered in real time when possible. If you don't see a new
+                  Messages are delivered in real time when possible. If you don&apos;t see a new
                   message, use Refresh.
                 </p>
               </header>
