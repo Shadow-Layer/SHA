@@ -41,3 +41,4 @@ next-env.d.ts
 /docs/
 Sha-Sourcecode.zip
 real-app-backend-main/
+*.zip

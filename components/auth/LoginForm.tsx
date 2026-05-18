@@ -91,8 +91,9 @@ export default function LoginForm({ callbackUrl }: LoginFormProps) {
         {isSubmitting ? "Signing in..." : "Sign In"}
       </Button>
 
-      <p className="text-sm text-muted-foreground">
-        Forgot your password? Contact admin@sha.co.zw to reset it.
+      <p className="mt-4 text-center text-xs text-muted-foreground">
+        Forgot your password? Contact{" "}
+        <a href="mailto:admin@sha.co.zw">admin@sha.co.zw</a>
       </p>
     </form>
   );

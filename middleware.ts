@@ -30,6 +30,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
+  if (pathname.startsWith("/dashboard/provider") && token.role !== "service_provider") {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
 
   return NextResponse.next();
 }

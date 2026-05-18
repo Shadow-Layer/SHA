@@ -500,9 +500,15 @@ export default function InboxClient({
 
   return (
     <section className="mt-6 space-y-4">
-      <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 shadow-sm">
-        Messages are not delivered in real time. Refresh the page to see new messages.
-      </div>
+      {ablyReady ? (
+        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900 shadow-sm">
+          ✓ Realtime chat enabled
+        </div>
+      ) : ablyFailed ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
+          ⚠ Realtime unavailable — use Refresh to load new messages
+        </div>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         <aside className="rounded-xl border bg-card p-4 shadow-sm">
@@ -556,6 +562,10 @@ export default function InboxClient({
                   {isOtherUserOnline ? "Online now" : "Offline"}
                   {isOtherUserTyping ? " • Typing…" : ""}
                   {!ablyReady && ablyFailed ? " • Manual refresh mode" : ""}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Messages are delivered in real time when possible. If you don't see a new
+                  message, use Refresh.
                 </p>
               </header>
               <div className="mt-4 space-y-3">

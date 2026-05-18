@@ -12,9 +12,12 @@ import type {
   ListingsResult,
 } from "@/lib/listings";
 
-const BrowseMap = dynamic(() => import("@/components/listings/BrowseMap"), {
-  ssr: false,
-});
+const BrowseMap = dynamic<{ listings: ListingCardData[] }>(
+  () => import("@/components/listings/BrowseMap"),
+  {
+    ssr: false,
+  },
+);
 
 type BrowseListingsClientProps = {
   listings: ListingCardData[];
@@ -58,39 +61,19 @@ export default function BrowseListingsClient({
   searchParams,
   filters,
 }: BrowseListingsClientProps) {
-  const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const hasListings = listings.length > 0;
 
   return (
     <>
       <section className="mt-6">
-        <div className="flex flex-wrap items-start gap-4">
-          <div className="min-w-0 flex-1">
-            <FilterBar
-              initialArea={filters.area}
-              initialMinRent={filters.minRent}
-              initialMaxRent={filters.maxRent}
-              initialOccupancyType={filters.occupancyType}
-              initialAmenity={filters.amenities?.[0]}
-            />
-          </div>
-          <div className="ml-auto flex rounded-lg border bg-card p-1 shadow-sm">
-            <Button
-              type="button"
-              variant={viewMode === "grid" ? "default" : "ghost"}
-              onClick={() => setViewMode("grid")}
-            >
-              Grid
-            </Button>
-            <Button
-              type="button"
-              variant={viewMode === "map" ? "default" : "ghost"}
-              onClick={() => setViewMode("map")}
-            >
-              Map
-            </Button>
-          </div>
-        </div>
+        <FilterBar
+          initialArea={filters.area}
+          initialMinRent={filters.minRent}
+          initialMaxRent={filters.maxRent}
+          initialOccupancyType={filters.occupancyType}
+          initialAmenity={filters.amenities?.[0]}
+        />
       </section>
 
       {!hasListings ? (
@@ -110,88 +93,111 @@ export default function BrowseListingsClient({
             </Button>
           </div>
         </section>
-      ) : viewMode === "map" ? (
-        <section className="mt-6">
-          <BrowseMap listings={listings} />
-        </section>
       ) : (
         <>
-          <section className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {listings.map((listing) => (
-              <article
-                key={listing.id}
-                className="overflow-hidden rounded-xl border bg-card shadow-sm"
+          <section className="mt-6 flex justify-end">
+            <div className="flex rounded-lg border bg-card p-1 shadow-sm">
+              <Button
+                type="button"
+                variant={viewMode === "list" ? "default" : "ghost"}
+                onClick={() => setViewMode("list")}
               >
-                <Link href={`/listings/${listing.id}`} className="block">
-                  <div className="relative h-48 w-full bg-muted">
-                    {listing.photoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={listing.photoUrl}
-                        alt={listing.title}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                        No photo available
-                      </div>
-                    )}
-                    <span className="absolute left-3 top-3 rounded-full bg-background px-2 py-1 text-xs font-medium shadow-sm">
-                      {listing.verificationLevel === "student_verified"
-                        ? "Student Verified"
-                        : "Landlord Confirmed"}
-                    </span>
-                  </div>
-                </Link>
-
-                <div className="space-y-2 p-4">
-                  <h2 className="text-lg font-semibold">
-                    <Link href={`/listings/${listing.id}`}>{listing.title}</Link>
-                  </h2>
-                  <p className="text-sm text-muted-foreground">{listing.area}</p>
-                  <p className="text-sm">
-                    {listing.minRent !== null ? (
-                      <>
-                        <span className="font-medium">${listing.minRent}</span>/month
-                      </>
-                    ) : (
-                      "Rent available on request"
-                    )}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    ★ {listing.starRating.toFixed(1)} ({listing.reviewCount})
-                  </p>
-                </div>
-              </article>
-            ))}
-          </section>
-
-          <section className="mt-8 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Page {pagination.page} of {pagination.totalPages} · {pagination.total} listing
-              {pagination.total === 1 ? "" : "s"}
-            </p>
-            <div className="flex gap-2">
-              {pagination.page > 1 ? (
-                <Button variant="outline" asChild>
-                  <Link href={buildPageHref(searchParams, pagination.page - 1)}>Previous</Link>
-                </Button>
-              ) : (
-                <Button variant="outline" disabled>
-                  Previous
-                </Button>
-              )}
-              {pagination.page < pagination.totalPages ? (
-                <Button variant="outline" asChild>
-                  <Link href={buildPageHref(searchParams, pagination.page + 1)}>Next</Link>
-                </Button>
-              ) : (
-                <Button variant="outline" disabled>
-                  Next
-                </Button>
-              )}
+                ☰ List
+              </Button>
+              <Button
+                type="button"
+                variant={viewMode === "map" ? "default" : "ghost"}
+                onClick={() => setViewMode("map")}
+              >
+                🗺 Map
+              </Button>
             </div>
           </section>
+
+          {viewMode === "map" ? (
+            <section className="mt-6">
+              <BrowseMap listings={listings} />
+            </section>
+          ) : (
+            <>
+              <section className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {listings.map((listing) => (
+                  <article
+                    key={listing.id}
+                    className="overflow-hidden rounded-xl border bg-card shadow-sm"
+                  >
+                    <Link href={`/listings/${listing.id}`} className="block">
+                      <div className="relative h-48 w-full bg-muted">
+                        {listing.photoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={listing.photoUrl}
+                            alt={listing.title}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                            No photo available
+                          </div>
+                        )}
+                        <span className="absolute left-3 top-3 rounded-full bg-background px-2 py-1 text-xs font-medium shadow-sm">
+                          {listing.verificationLevel === "student_verified"
+                            ? "Student Verified"
+                            : "Landlord Confirmed"}
+                        </span>
+                      </div>
+                    </Link>
+
+                    <div className="space-y-2 p-4">
+                      <h2 className="text-lg font-semibold">
+                        <Link href={`/listings/${listing.id}`}>{listing.title}</Link>
+                      </h2>
+                      <p className="text-sm text-muted-foreground">{listing.area}</p>
+                      <p className="text-sm">
+                        {listing.minRent !== null ? (
+                          <>
+                            <span className="font-medium">${listing.minRent}</span>/month
+                          </>
+                        ) : (
+                          "Rent available on request"
+                        )}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        ★ {listing.starRating.toFixed(1)} ({listing.reviewCount})
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </section>
+
+              <section className="mt-8 flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Page {pagination.page} of {pagination.totalPages} · {pagination.total} listing
+                  {pagination.total === 1 ? "" : "s"}
+                </p>
+                <div className="flex gap-2">
+                  {pagination.page > 1 ? (
+                    <Button variant="outline" asChild>
+                      <Link href={buildPageHref(searchParams, pagination.page - 1)}>Previous</Link>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" disabled>
+                      Previous
+                    </Button>
+                  )}
+                  {pagination.page < pagination.totalPages ? (
+                    <Button variant="outline" asChild>
+                      <Link href={buildPageHref(searchParams, pagination.page + 1)}>Next</Link>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" disabled>
+                      Next
+                    </Button>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
         </>
       )}
     </>

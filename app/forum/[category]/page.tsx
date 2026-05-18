@@ -72,6 +72,8 @@ export default async function ForumCategoryPage({ params, searchParams }: ForumC
   const showStudentOnlyAccessNote =
     !canAccessCategory &&
     (session.user.role === "landlord" || session.user.role === "admin");
+  const showStudentOnlyPostingNote =
+    session.user.role === "landlord" || session.user.role === "admin";
 
   if (!canAccessCategory && !showStudentOnlyAccessNote) {
     redirect("/dashboard");
@@ -137,6 +139,12 @@ export default async function ForumCategoryPage({ params, searchParams }: ForumC
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10">
+      {showStudentOnlyPostingNote ? (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          The forum is currently available to students only. Landlord and admin accounts cannot
+          post or comment.
+        </div>
+      ) : null}
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
         <aside className="rounded-xl border bg-card p-4 shadow-sm">
           <h2 className="text-sm font-semibold uppercase text-muted-foreground">Categories</h2>

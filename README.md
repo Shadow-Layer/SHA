@@ -33,17 +33,19 @@ Open `http://localhost:3000`.
 
 ## Environment Variables
 
-SHA requires the following 7 environment variables for local development and production deployment.
+SHA requires the following environment variables for local development and production deployment.
 
 | Variable | Purpose | How to generate/obtain |
 | --- | --- | --- |
 | `MONGODB_URI` | MongoDB Atlas connection string | Atlas Console → Connect → Drivers |
 | `NEXTAUTH_SECRET` | JWT signing secret (min 32 chars) | `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | Production domain for NextAuth callbacks | e.g. `https://main.d1cuvfcb286qsc.amplifyapp.com` |
+| `NEXTAUTH_URL` | Production domain for NextAuth callbacks | e.g. `<PRODUCTION_URL>` |
 | `MEGA_EMAIL` | MEGA service account email | MEGA account (disable 2FA on service account) |
 | `MEGA_PASSWORD` | MEGA service account password | MEGA account |
 | `SEED_SECRET` | Guards `/api/seed` and `/api/health/db` | Any secure random string |
 | `ABLY_API_KEY` | Ably Realtime for inbox notifications | Ably Console → API Keys (gracefully degrades if missing) |
+| `RESEND_API_KEY` | Optional — Resend API key for invite emails. Invite links still work without it; emails are skipped silently. | Resend Console → API Keys |
+| `RESEND_FROM_EMAIL` | Optional — Sender address for invite emails | Defaults to `SHA <noreply@sha.co.zw>` |
 
 Example `.env.local`:
 
@@ -57,11 +59,11 @@ SEED_SECRET=
 ABLY_API_KEY=
 ```
 
-Note: `.env.local.example` also contains additional variables used by E2E tests and email delivery, but the 7 variables above are the required application variables.
+Note: `.env.local.example` also contains additional variables used by E2E tests and email delivery. `RESEND_API_KEY` and `RESEND_FROM_EMAIL` are optional.
 
 ## Deployment on AWS Amplify
 
-- Production URL: `https://main.d1cuvfcb286qsc.amplifyapp.com`
+- Production URL: `<PRODUCTION_URL>`
 - Build config: `amplify.yml`
 - All 7 environment variables must be set in Amplify Console → App settings → Environment variables for the `main` branch
 
@@ -77,7 +79,7 @@ Both are required: Amplify Console variables for SSR, and `.env.production` for 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `POST` | `/api/seed` | Seeds the database with demo data. Requires `x-seed-secret` header. |
-| `GET` | `/api/health/db` | Checks MongoDB connection. Requires `x-debug-key` header equal to `SEED_SECRET`. |
+| `GET` | `/api/health/db` | Checks MongoDB connection. Accepts `x-seed-secret` header (preferred), `x-debug-key` header (legacy), or `?key=` query param — all compared against `SEED_SECRET`. |
 | `POST` | `/api/auth/register` | User registration. |
 | `GET` | `/api/listings` | Browse listings (public). |
 | `POST` | `/api/auth/login` | Login. |
@@ -93,7 +95,7 @@ SEED_SECRET=<value> BASE_URL=http://localhost:3000 npm run test:e2e
 Run against production:
 
 ```bash
-SEED_SECRET=<value> npm run test:e2e:ci
+SEED_SECRET=<value> BASE_URL=<PRODUCTION_URL> npm run test:e2e:ci
 ```
 
 The suite covers 11 test cases: `TC01` through `TC10`, plus `TC06b`. Coverage includes landlord registration, listing creation, student registration, applications, forum flows, inbox messaging, and notifications.
@@ -102,7 +104,7 @@ The runner auto-seeds the database before the test suite starts.
 
 ## Known MVP Limitations
 
-- Inbox is async polling, so users must refresh to see new messages. Real-time Ably client subscription is planned for v1.1.
+- Inbox uses Ably Realtime for live message delivery. If `ABLY_API_KEY` is not set, the inbox falls back to manual refresh mode and shows a notice to the user.
 - Forum is student-only. Landlords and admins receive `403` on forum API calls. This is planned for v1.1.
 - There is no password reset flow. Users who forget passwords should contact `admin@sha.co.zw`. This is planned for v1.1.
 - Listings cannot be edited after submission. This is planned for v1.1.
@@ -111,7 +113,7 @@ The runner auto-seeds the database before the test suite starts.
 ## Seeding Production
 
 ```bash
-curl -X POST https://main.d1cuvfcb286qsc.amplifyapp.com/api/seed \
+curl -X POST <PRODUCTION_URL>/api/seed \
   -H "x-seed-secret: YOUR_SEED_SECRET"
 ```
 
@@ -127,3 +129,25 @@ Seeding creates:
 - 5 notifications
 
 Default seed password for all seeded accounts: `password`
+
+## DB Health Check
+
+Preferred header:
+
+```bash
+curl <PRODUCTION_URL>/api/health/db \
+  -H "x-seed-secret: YOUR_SEED_SECRET"
+```
+
+Legacy header:
+
+```bash
+curl <PRODUCTION_URL>/api/health/db \
+  -H "x-debug-key: YOUR_SEED_SECRET"
+```
+
+Query param:
+
+```bash
+curl "<PRODUCTION_URL>/api/health/db?key=YOUR_SEED_SECRET"
+```
