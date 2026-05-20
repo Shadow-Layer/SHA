@@ -97,7 +97,8 @@ export async function POST(request: NextRequest) {
     const url = await uploadToMega(buffer, renamed, "service-providers");
 
     return NextResponse.json({ url }, { status: 200 });
-  } catch {
+  } catch (error) {
+    console.error("Service provider upload failed", error);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }

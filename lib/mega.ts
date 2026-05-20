@@ -17,7 +17,12 @@ export async function getMegaStorage(): Promise<Storage> {
   const storage = new Storage({ email, password });
 
   // storage.ready is a promise-like on megajs
-  await storage.ready;
+  try {
+    await storage.ready;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`MEGA login failed: ${detail}`);
+  }
 
   storageInstance = storage;
   return storageInstance;
@@ -64,24 +69,29 @@ function linkPromised(node: MutableFile): Promise<string> {
 }
 
 export async function uploadToMega(buffer: Buffer, filename: string, folder: string): Promise<string> {
-  const storage = await getMegaStorage();
+  try {
+    const storage = await getMegaStorage();
 
-  const root = storage.root;
+    const root = storage.root;
 
-  // ensure /SHA folder
-  let shaNode = findChildByName(root, "SHA");
-  if (!shaNode) {
-    shaNode = await mkdirPromised(root, "SHA");
+    // ensure /SHA folder
+    let shaNode = findChildByName(root, "SHA");
+    if (!shaNode) {
+      shaNode = await mkdirPromised(root, "SHA");
+    }
+
+    // ensure subfolder
+    let targetFolder = findChildByName(shaNode, folder);
+    if (!targetFolder) {
+      targetFolder = await mkdirPromised(shaNode, folder);
+    }
+
+    const uploaded = await uploadPromised(targetFolder, filename, buffer);
+    const publicLink = await linkPromised(uploaded);
+
+    return publicLink;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`MEGA upload failed for ${folder}/${filename}: ${detail}`);
   }
-
-  // ensure subfolder
-  let targetFolder = findChildByName(shaNode, folder);
-  if (!targetFolder) {
-    targetFolder = await mkdirPromised(shaNode, folder);
-  }
-
-  const uploaded = await uploadPromised(targetFolder, filename, buffer);
-  const publicLink = await linkPromised(uploaded);
-
-  return publicLink;
 }
