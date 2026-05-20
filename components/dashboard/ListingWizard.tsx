@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { toDisplayImageUrl } from "@/lib/media";
 
 type ListingWizardProps = {
   userId: string;
@@ -411,7 +412,12 @@ export default function ListingWizard({ userId }: ListingWizardProps) {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {state.photos.map((photo) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={photo} src={photo} alt="Listing upload" className="h-28 w-full rounded-md object-cover" />
+              <img
+                key={photo}
+                src={toDisplayImageUrl(photo)}
+                alt="Listing upload"
+                className="h-28 w-full rounded-md object-cover"
+              />
             ))}
           </div>
           <div className="rounded-lg border p-4 text-sm">

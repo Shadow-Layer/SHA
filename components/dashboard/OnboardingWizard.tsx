@@ -9,6 +9,7 @@ import {
   type OccupancyType,
 } from "@/components/dashboard/ListingWizard";
 import { Button } from "@/components/ui/button";
+import { toDisplayImageUrl } from "@/lib/media";
 
 type OccupancyOption = {
   type?: string;
@@ -580,7 +581,7 @@ export default function OnboardingWizard({ listingId, initialData }: OnboardingW
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={photo}
-                src={photo}
+                src={toDisplayImageUrl(photo)}
                 alt="Listing upload"
                 className="h-28 w-full rounded-md object-cover"
               />

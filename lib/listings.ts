@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
+import { toDisplayImageUrl } from "@/lib/media";
 import Listing from "@/lib/models/Listing";
 
 type ListingSearchParams = Record<string, string | string[] | undefined>;
@@ -234,6 +235,7 @@ function normalizeListing(doc: Record<string, unknown>): ListingCardData {
   const starRating = reviewCount === 0 ? 0 : Number(((confirmationCount / reviewCount) * 5).toFixed(1));
 
   const photos = Array.isArray(doc.photos) ? (doc.photos as string[]) : [];
+  const displayPhotos = photos.map((photo) => toDisplayImageUrl(photo));
   const amenities = Array.isArray(doc.amenities) ? (doc.amenities as string[]) : [];
 
   return {
@@ -244,7 +246,7 @@ function normalizeListing(doc: Record<string, unknown>): ListingCardData {
     lng,
     occupancyOptions: normalizedOccupancyOptions,
     amenities,
-    photoUrl: photos[0] ?? null,
+    photoUrl: displayPhotos[0] ?? null,
     verificationLevel:
       doc.verificationLevel === "student_verified" ? "student_verified" : "landlord_confirmed",
     minRent,
@@ -316,7 +318,9 @@ export async function getListingById(
   const tenantPreferences = Array.isArray(doc.tenantPreferences)
     ? (doc.tenantPreferences as string[])
     : [];
-  const photos = Array.isArray(doc.photos) ? (doc.photos as string[]) : [];
+  const photos = Array.isArray(doc.photos)
+    ? (doc.photos as string[]).map((photo) => toDisplayImageUrl(photo))
+    : [];
   const regulations =
     doc.regulations && typeof doc.regulations === "object"
       ? (doc.regulations as ListingRegulations)
