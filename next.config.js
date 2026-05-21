@@ -4,6 +4,9 @@ const withPWA = require("next-pwa")({
   register: true,
   skipWaiting: true,
   runtimeCaching: require("next-pwa/cache"),
+  fallbacks: {
+    document: "/offline.html",
+  },
   buildExcludes: [/middleware-manifest\.json$/],
   exclude: [/\/api\//],
 });

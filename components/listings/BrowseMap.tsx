@@ -2,9 +2,10 @@
 
 import "leaflet/dist/leaflet.css";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import L from "leaflet";
-import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 
 import { useMapCenter } from "@/lib/hooks/useMapCenter";
 import type { ListingCardData } from "@/lib/listings";
@@ -24,6 +25,28 @@ L.Icon.Default.mergeOptions({
 type BrowseMapProps = {
   listings: ListingCardData[];
 };
+
+type MapViewportSyncProps = {
+  center: [number, number];
+};
+
+function MapViewportSync({ center }: MapViewportSyncProps) {
+  const map = useMap();
+  const [lat, lng] = center;
+
+  useEffect(() => {
+    const currentCenter = map.getCenter();
+    if (currentCenter.lat === lat && currentCenter.lng === lng) {
+      return;
+    }
+
+    map.setView([lat, lng], map.getZoom(), {
+      animate: false,
+    });
+  }, [lat, lng, map]);
+
+  return null;
+}
 
 function formatCurrency(value: number | null) {
   if (typeof value !== "number") {
@@ -57,6 +80,7 @@ export default function BrowseMap({ listings }: BrowseMapProps) {
         zoom={15}
         style={{ height: "clamp(300px, 50vh, 500px)", width: "100%" }}
       >
+        <MapViewportSync center={center} />
         <TileLayer
           attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
