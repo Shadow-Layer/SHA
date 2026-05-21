@@ -11,9 +11,10 @@ export async function geocode({
   try {
     const query = [area, landmark].filter(Boolean).join(" ");
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&accept-language=en`,
       {
         headers: {
+          "Accept-Language": "en",
           "User-Agent": "SHA/1.0 (student-housing-archive)",
         },
         signal: controller.signal,

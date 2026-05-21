@@ -48,7 +48,7 @@ export default function StudentApplicationsTable({ rows }: StudentApplicationsTa
     <div className="space-y-3">
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="min-w-[600px] w-full text-sm">
           <thead className="text-left text-muted-foreground">
             <tr className="border-b">
               <th className="py-2 pr-3">Listing</th>

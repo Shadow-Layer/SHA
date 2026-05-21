@@ -107,7 +107,7 @@ export default async function LandlordDashboardPage({ searchParams }: LandlordDa
           </div>
         ) : (
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="min-w-[500px] w-full text-sm">
               <thead className="bg-muted text-xs uppercase text-muted-foreground">
                 <tr>
                   <th className="px-4 py-2 text-left font-medium">Title</th>

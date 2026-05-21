@@ -20,6 +20,8 @@ const UserSchema = new Schema(
     },
     inviteTokenHash: { type: String },
     inviteTokenExpiresAt: { type: Date },
+    passwordResetTokenHash: { type: String },
+    passwordResetExpiresAt: { type: Date },
     consentGiven: { type: Boolean, default: false },
     consentAt: { type: Date },
     source: {

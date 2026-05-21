@@ -121,7 +121,7 @@ export default function FilterBar({
   return (
     <form
       onSubmit={onSubmit}
-      className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-5 md:items-end"
+      className="grid grid-cols-1 gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 md:grid-cols-5 md:items-end"
     >
       <div className="space-y-1">
         <label htmlFor="area" className="text-sm font-medium">
@@ -191,7 +191,7 @@ export default function FilterBar({
         </select>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <Button type="submit" className="w-full">
           Apply
         </Button>

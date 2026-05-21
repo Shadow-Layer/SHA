@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import LogoutButton from "@/components/auth/LogoutButton";
+import NavbarMobileMenu from "@/components/NavbarMobileMenu";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { getAuthSession } from "@/lib/auth";
@@ -67,7 +68,8 @@ export default async function Navbar() {
         </Link>
 
         <div className="flex items-center gap-3 sm:gap-6">
-          <div className="flex max-w-[45vw] items-center gap-4 overflow-x-auto whitespace-nowrap">
+          <NavbarMobileMenu navLinks={navLinks} isAuthenticated={isAuthenticated} />
+          <div className="hidden max-w-[45vw] items-center gap-4 overflow-x-auto whitespace-nowrap sm:flex">
             {navLinks.map((link) => (
               <Link
                 key={`${role ?? "guest"}-${link.href}`}

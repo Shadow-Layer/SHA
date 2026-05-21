@@ -6,6 +6,7 @@ import Link from "next/link";
 import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 
+import { useMapCenter } from "@/lib/hooks/useMapCenter";
 import type { ListingCardData } from "@/lib/listings";
 
 delete (
@@ -37,21 +38,28 @@ function formatCurrency(value: number | null) {
 }
 
 export default function BrowseMap({ listings }: BrowseMapProps) {
+  const { center, status } = useMapCenter();
   const withCoords = listings.filter(
     (listing): listing is ListingCardData & { lat: number; lng: number } =>
       listing.lat !== null && listing.lng !== null,
   );
   const withoutCoords = listings.filter((listing) => listing.lat === null || listing.lng === null);
-  const center: [number, number] = withCoords[0]
-    ? [withCoords[0].lat, withCoords[0].lng]
-    : [-17.8, 31.05];
 
   return (
     <div className="space-y-4">
-      <MapContainer center={center} zoom={15} style={{ height: "500px", width: "100%" }}>
+      {status === "denied" ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Location access denied — showing Mutare region.
+        </div>
+      ) : null}
+      <MapContainer
+        center={center}
+        zoom={15}
+        style={{ height: "clamp(300px, 50vh, 500px)", width: "100%" }}
+      >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         />
         {withCoords.map((listing) => (
           <Marker key={listing.id} position={[listing.lat, listing.lng]}>

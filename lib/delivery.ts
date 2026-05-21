@@ -77,3 +77,23 @@ export function buildServiceProviderInviteEmail(params: {
 </html>`;
   return { subject, html };
 }
+
+export function buildPasswordResetEmail(params: {
+  email: string;
+  resetUrl: string;
+}): { subject: string; html: string } {
+  const subject = "Reset your SHA password";
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;background:#f9f9f9;margin:0;padding:32px 16px;">
+  <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;border:1px solid #e5e7eb;">
+    <p style="font-size:15px;color:#111827;margin:0 0 16px;">Hi ${params.email},</p>
+    <p style="font-size:15px;color:#374151;margin:0 0 24px;">We received a request to reset your Student Housing Archive password.</p>
+    <a href="${params.resetUrl}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:15px;font-weight:600;">Reset Your Password</a>
+    <p style="font-size:13px;color:#6b7280;margin:24px 0 0;">This link expires in 1 hour.</p>
+  </div>
+</body>
+</html>`;
+  return { subject, html };
+}

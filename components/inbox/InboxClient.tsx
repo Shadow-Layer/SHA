@@ -145,6 +145,7 @@ export default function InboxClient({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
   const [ablyReady, setAblyReady] = useState(false);
   const [ablyFailed, setAblyFailed] = useState(false);
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
@@ -510,8 +511,14 @@ export default function InboxClient({
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-        <aside className="rounded-xl border bg-card p-4 shadow-sm">
+      <div className="grid gap-4 md:grid-cols-[280px_1fr]">
+        <aside
+          className={
+            mobileView === "chat"
+              ? "hidden rounded-xl border bg-card p-4 shadow-sm md:block"
+              : "rounded-xl border bg-card p-4 shadow-sm md:block"
+          }
+        >
           <h2 className="text-lg font-semibold">Conversations</h2>
           <div className="mt-4 space-y-2">
             {conversationList.length === 0 ? (
@@ -526,6 +533,7 @@ export default function InboxClient({
                   }`}
                   onClick={() => {
                     setSelectedConversationId(conversation.id);
+                    setMobileView("chat");
                     setError(null);
                   }}
                 >
@@ -542,12 +550,27 @@ export default function InboxClient({
           </div>
         </aside>
 
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div
+          className={
+            mobileView === "list"
+              ? "hidden rounded-xl border bg-card p-4 shadow-sm md:block"
+              : "rounded-xl border bg-card p-4 shadow-sm md:block"
+          }
+        >
           {selectedConversation ? (
             <>
               <header className="border-b pb-3">
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-lg font-semibold">Re: {selectedConversation.listingTitle}</h2>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="text-sm font-medium md:hidden"
+                      onClick={() => setMobileView("list")}
+                    >
+                      ← Back
+                    </button>
+                    <h2 className="text-lg font-semibold">Re: {selectedConversation.listingTitle}</h2>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"

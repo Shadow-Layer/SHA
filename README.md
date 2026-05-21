@@ -44,8 +44,8 @@ SHA requires the following environment variables for local development and produ
 | `MEGA_PASSWORD` | MEGA service account password | MEGA account |
 | `SEED_SECRET` | Guards `/api/seed` and `/api/health/db` | Any secure random string |
 | `ABLY_API_KEY` | Ably Realtime for inbox notifications | Ably Console → API Keys (gracefully degrades if missing) |
-| `RESEND_API_KEY` | Optional — Resend API key for invite emails. Invite links still work without it; emails are skipped silently. | Resend Console → API Keys |
-| `RESEND_FROM_EMAIL` | Optional — Sender address for invite emails | Defaults to `SHA <noreply@sha.co.zw>` |
+| `RESEND_API_KEY` | Required for invite delivery and the reset password flow. Without it, invite and password reset emails are skipped. | Resend Console → API Keys |
+| `RESEND_FROM_EMAIL` | Required sender address for invite delivery and the reset password flow | Defaults to `SHA <noreply@sha.co.zw>` |
 
 Example `.env.local`:
 
@@ -59,13 +59,13 @@ SEED_SECRET=
 ABLY_API_KEY=
 ```
 
-Note: `.env.local.example` also contains additional variables used by E2E tests and email delivery. `RESEND_API_KEY` and `RESEND_FROM_EMAIL` are optional.
+Note: `.env.local.example` also contains additional variables used by E2E tests and email delivery. Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in every environment where users need invite emails or password reset emails.
 
 ## Deployment on AWS Amplify
 
 - Production URL: `<PRODUCTION_URL>`
 - Build config: `amplify.yml`
-- All 7 environment variables must be set in Amplify Console → App settings → Environment variables for the `main` branch
+- Set all required environment variables in Amplify Console → App settings → Environment variables for the `main` branch. Include `RESEND_API_KEY` and `RESEND_FROM_EMAIL` if invite emails and password resets must work in that environment.
 
 Amplify uses two environment-variable paths during deployment:
 
@@ -106,9 +106,17 @@ The runner auto-seeds the database before the test suite starts.
 
 - Inbox uses Ably Realtime for live message delivery. If `ABLY_API_KEY` is not set, the inbox falls back to manual refresh mode and shows a notice to the user.
 - Forum is student-only. Landlords and admins receive `403` on forum API calls. This is planned for v1.1.
-- There is no password reset flow. Users who forget passwords should contact `admin@sha.co.zw`. This is planned for v1.1.
 - Listings cannot be edited after submission. This is planned for v1.1.
 - Bulk admin actions are not available in v1.0. This is planned for v1.1.
+
+## PWA Testing
+
+1. Run `npm install` to install `next-pwa`, then create a production build with `npm run build`.
+2. Start the app with `npm run start` and open the site over `http://localhost:3000`.
+3. In Chrome DevTools, open Application and confirm that `manifest.json`, `sw.js`, and the two PNG icons are present.
+4. Use Lighthouse with the PWA category enabled and verify installability, manifest validity, and service worker registration.
+5. In DevTools, switch the Network tab to `Offline`, refresh a previously visited page, and confirm cached assets still load while API-driven content is not cached.
+6. Test install flow on desktop and mobile. Confirm the app installs with the SHA name, icon, standalone display mode, and theme color.
 
 ## Seeding Production
 

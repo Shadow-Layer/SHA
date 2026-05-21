@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
@@ -92,8 +93,8 @@ export default function LoginForm({ callbackUrl }: LoginFormProps) {
       </Button>
 
       <p className="mt-4 text-center text-xs text-muted-foreground">
-        Forgot your password? Contact{" "}
-        <a href="mailto:admin@sha.co.zw">admin@sha.co.zw</a>
+        Forgot your password?{" "}
+        <Link href="/auth/forgot-password">Reset it here</Link>
       </p>
     </form>
   );
