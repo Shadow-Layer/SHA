@@ -9,6 +9,7 @@ import { connectDB } from "@/lib/db";
 import LandlordOutreachEvent from "@/lib/models/LandlordOutreachEvent";
 import Listing from "@/lib/models/Listing";
 import User from "@/lib/models/User";
+import { buildLandlordClaimUrl, resolveBaseUrl } from "@/lib/admin/invite-helpers";
 import { appendClaimLink, buildWhatsAppLink } from "@/lib/whatsapp";
 
 type RouteContext = {
@@ -24,19 +25,6 @@ const PRE_CLAIM_LISTING_STATUSES = ["imported_draft", "awaiting_landlord_claim"]
 
 const DEFAULT_MESSAGE_TEMPLATE =
   "Hello {landlordName}, this is Student Housing Archive. We imported your rental listing details so students can find verified housing more easily. Please claim your landlord account and complete your listing using the secure link below:\n\n{claimLink}\n\nIf you did not expect this message, you can ignore it.";
-
-function resolveBaseUrl(request: NextRequest): string | null {
-  const fromEnv = process.env.NEXTAUTH_URL?.trim();
-  if (fromEnv) return fromEnv.replace(/\/$/, "");
-  const origin = request.headers.get("origin");
-  if (origin) return origin.replace(/\/$/, "");
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  if (forwardedHost) {
-    const proto = request.headers.get("x-forwarded-proto") || "https";
-    return `${proto}://${forwardedHost}`.replace(/\/$/, "");
-  }
-  return null;
-}
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
   const session = await getAuthSession();
@@ -132,7 +120,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     await listing.save();
   }
 
-  const claimUrl = `${baseUrl}/claim/${rawToken}`;
+  const claimUrl = buildLandlordClaimUrl(baseUrl, rawToken);
   const landlordName = user.name?.trim() || "there";
 
   const template = body.messageTemplate?.trim() || DEFAULT_MESSAGE_TEMPLATE;

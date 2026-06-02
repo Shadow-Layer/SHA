@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
+import BulkWhatsAppPdfModal from "@/components/admin/BulkWhatsAppPdfModal";
+import { buildWhatsAppLink } from "@/lib/whatsapp";
 import {
   Sheet,
   SheetContent,
@@ -176,6 +178,8 @@ function getBadgeClass(value: string) {
     case "removed":
     case "unreachable":
       return "bg-rose-100 text-rose-700";
+    case "bulk_pdf_generated":
+      return "bg-indigo-100 text-indigo-700";
     default:
       return "bg-muted text-muted-foreground";
   }
@@ -214,6 +218,9 @@ export default function AdminImportedLeadsClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkPdfModalOpen, setBulkPdfModalOpen] = useState(false);
+  const [bulkSuccessBanner, setBulkSuccessBanner] = useState<string | null>(null);
   const [workingId, setWorkingId] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<ImportedLeadRow | null>(null);
   const [events, setEvents] = useState<OutreachEvent[]>([]);
@@ -241,6 +248,7 @@ export default function AdminImportedLeadsClient() {
 
       const nextRows = Array.isArray(data.items) ? data.items : [];
       setRows(nextRows);
+      setSelectedIds((current) => current.filter((userId) => nextRows.some((row) => row.userId === userId)));
       setSelectedLead((current) =>
         current ? nextRows.find((row) => row.userId === current.userId) ?? null : null,
       );
@@ -388,6 +396,32 @@ export default function AdminImportedLeadsClient() {
     }
   }
 
+  const selectedIdSet = new Set(selectedIds);
+  const selectedRows = rows.filter((row) => selectedIdSet.has(row.userId));
+  const allVisibleSelected = rows.length > 0 && rows.every((row) => selectedIdSet.has(row.userId));
+  const canBulkExport = selectedRows.length > 0;
+
+  function toggleRowSelection(userId: string, checked: boolean) {
+    setSelectedIds((current) => {
+      if (checked) {
+        return current.includes(userId) ? current : [...current, userId];
+      }
+
+      return current.filter((id) => id !== userId);
+    });
+  }
+
+  function toggleAllVisibleSelection(checked: boolean) {
+    setSelectedIds((current) => {
+      if (checked) {
+        return Array.from(new Set([...current, ...rows.map((row) => row.userId)]));
+      }
+
+      const visibleIds = new Set(rows.map((row) => row.userId));
+      return current.filter((id) => !visibleIds.has(id));
+    });
+  }
+
   async function callWhatsAppInviteApi(
     userId: string,
     phoneOverride?: string,
@@ -459,9 +493,13 @@ export default function AdminImportedLeadsClient() {
     const finalMessage = currentMessage.includes(claimUrl)
       ? currentMessage
       : currentMessage.trimEnd() + "\n\n" + claimUrl;
-    const waMePhone = normalizedPhone.replace(/^\+/, "");
-    const waUrl = `https://wa.me/${waMePhone}?text=${encodeURIComponent(finalMessage)}`;
-    window.open(waUrl, "_blank");
+    const waResult = buildWhatsAppLink(normalizedPhone || row.phone, finalMessage);
+    if (!waResult) {
+      setError("Unable to build WhatsApp link.");
+      return;
+    }
+
+    window.open(waResult.whatsappUrl, "_blank");
     // optimistic row update — no full reload
     setRows((prev) =>
       prev.map((r) =>
@@ -495,6 +533,11 @@ export default function AdminImportedLeadsClient() {
     }
   }
 
+  function handleBulkPdfGenerated(result: { batchId: string; count: number }) {
+    setBulkSuccessBanner(`Generated a WhatsApp PDF for ${result.count} landlord(s). Batch ID: ${result.batchId}`);
+    setSelectedIds([]);
+  }
+
   return (
     <section className="mt-6 rounded-xl border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap gap-2 border-b pb-3">
@@ -511,11 +554,50 @@ export default function AdminImportedLeadsClient() {
       </div>
 
       {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+      {bulkSuccessBanner ? (
+        <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          {bulkSuccessBanner}
+        </p>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background px-4 py-3">
+        <div className="text-sm text-muted-foreground">
+          {selectedRows.length > 0
+            ? `${selectedRows.length} selected`
+            : "Select imported leads to export a WhatsApp PDF."}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!canBulkExport}
+            onClick={() => setBulkPdfModalOpen(true)}
+          >
+            Export WhatsApp PDF
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={!canBulkExport}
+            onClick={() => setSelectedIds([])}
+          >
+            Clear selection
+          </Button>
+        </div>
+      </div>
 
       <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[1180px] text-sm">
+        <table className="w-full min-w-[1280px] text-sm">
           <thead>
             <tr className="border-b text-left text-muted-foreground">
+              <th className="py-2 pr-4">
+                <input
+                  aria-label="Select all visible imported leads"
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={(event) => toggleAllVisibleSelection(event.target.checked)}
+                />
+              </th>
               <th className="py-2 pr-4">Owner Name + Phone</th>
               <th className="py-2 pr-4">Property / Area</th>
               <th className="py-2 pr-4">Outreach Status</th>
@@ -530,12 +612,41 @@ export default function AdminImportedLeadsClient() {
               const inviteUrl = inviteLinks[row.userId];
               const inviteDelivery = inviteDeliveryById[row.userId] ?? null;
               const inviteAllowed = canSendInvite(row);
+              const phoneCheck = buildWhatsAppLink(row.phone, "test");
+              const hasValidPhone = Boolean(phoneCheck);
+              const whatsappDisabledReason = !row.phone
+                ? "No phone number on file — WhatsApp unavailable"
+                : !hasValidPhone
+                  ? "Invalid phone number"
+                : row.inviteStatus === "claimed" || row.inviteStatus === "onboarded"
+                  ? "Landlord has already claimed their account"
+                  : "WhatsApp unavailable";
 
               return (
                 <tr key={row.userId} className="border-b align-top">
+                  <td className="py-3 pr-4 align-top">
+                    <input
+                      aria-label={`Select ${row.name}`}
+                      type="checkbox"
+                      checked={selectedIdSet.has(row.userId)}
+                      onChange={(event) => toggleRowSelection(row.userId, event.target.checked)}
+                    />
+                  </td>
                   <td className="py-3 pr-4">
                     <p className="font-medium">{row.name}</p>
-                    <p className="text-muted-foreground">{row.phone || "-"}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <p className="text-muted-foreground">{row.phone || "-"}</p>
+                      {row.phone && !hasValidPhone ? (
+                        <span className="inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+                          Invalid phone
+                        </span>
+                      ) : null}
+                      {!row.phone ? (
+                        <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
+                          No phone
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="py-3 pr-4">
                     <p className="font-medium">{row.listing?.title || "No linked listing"}</p>
@@ -551,7 +662,7 @@ export default function AdminImportedLeadsClient() {
                       Latest: {row.latestEvent ? formatLabel(row.latestEvent.type) : "No outreach yet"}
                     </p>
                   </td>
-                      <td className="py-3 pr-4">
+                  <td className="py-3 pr-4">
                     <span
                       className={`inline-flex rounded-full px-2 py-1 text-xs font-medium capitalize ${getBadgeClass(row.inviteStatus)}`}
                     >
@@ -562,6 +673,9 @@ export default function AdminImportedLeadsClient() {
                     </p>
                     {row.latestEvent?.type === "whatsapp_invite" ? (
                       <p className="mt-1 text-xs text-green-600">WhatsApp link generated</p>
+                    ) : null}
+                    {row.latestEvent?.type === "bulk_pdf_generated" ? (
+                      <p className="mt-1 text-xs text-indigo-600">Bulk WhatsApp PDF generated</p>
                     ) : null}
                   </td>
                   <td className="py-3 pr-4">
@@ -604,7 +718,7 @@ export default function AdminImportedLeadsClient() {
                               : "Invite unavailable"}
                           </span>
                         )}
-                        {canSendInvite(row) && row.phone ? (
+                        {canSendInvite(row) && hasValidPhone ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -615,16 +729,14 @@ export default function AdminImportedLeadsClient() {
                             Send via WhatsApp
                           </Button>
                         ) : (
-                          <span
-                            className="inline-flex items-center rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground"
-                            title={
-                              row.inviteStatus === "claimed" || row.inviteStatus === "onboarded"
-                                ? "Landlord has already claimed their account"
-                                : "No phone number on file — WhatsApp unavailable"
-                            }
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled
+                            title={whatsappDisabledReason}
                           >
-                            WhatsApp unavailable
-                          </span>
+                            Send via WhatsApp
+                          </Button>
                         )}
                         <Button
                           size="sm"
@@ -1002,6 +1114,23 @@ export default function AdminImportedLeadsClient() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <BulkWhatsAppPdfModal
+        open={bulkPdfModalOpen}
+        onOpenChange={setBulkPdfModalOpen}
+        rows={selectedRows.map((row) => ({
+          userId: row.userId,
+          name: row.name,
+          phone: row.phone,
+          listing: row.listing
+            ? {
+                title: row.listing.title,
+                area: row.listing.area,
+              }
+            : null,
+        }))}
+        onGenerated={handleBulkPdfGenerated}
+      />
     </section>
   );
 }

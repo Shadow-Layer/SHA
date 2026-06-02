@@ -22,8 +22,10 @@ const LandlordOutreachEventSchema = new Schema({
       "unreachable",
       "claimed",
       "whatsapp_invite",
+      "bulk_pdf_generated",
     ],
   },
+  batchId: { type: String },
   notes: { type: String },
   createdBy: {
     type: Schema.Types.ObjectId,

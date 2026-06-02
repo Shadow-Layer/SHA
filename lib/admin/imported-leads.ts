@@ -71,6 +71,7 @@ type ImportedLeadEvent = {
     | "unreachable"
     | "claimed"
     | "whatsapp_invite"
+    | "bulk_pdf_generated"
     | null;
   notes?: string | null;
   createdAt?: Date | null;
