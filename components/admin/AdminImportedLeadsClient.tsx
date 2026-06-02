@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -69,9 +71,49 @@ type OutreachEvent = {
   listingId: string | null;
 };
 
+type WhatsAppInviteResult = {
+  ok: boolean;
+  claimUrl: string;
+  whatsappUrl: string;
+  normalizedPhone: string;
+  expiresAt: string;
+  messagePreview: string;
+};
+
+type WhatsAppModalState = {
+  row: ImportedLeadRow;
+  loading: boolean;
+  error: string | null;
+  result: WhatsAppInviteResult | null;
+  message: string;
+  editingPhone: boolean;
+  phoneOverride: string;
+};
+
 type FilterTab = "all" | "not_contacted" | "invited" | "claimed" | "completed" | "declined";
 type ContactMethod = "call" | "whatsapp" | "in_person";
 type ActionStatus = "contacted" | "interested" | "declined" | "unreachable";
+
+const Dialog = DialogPrimitive.Root;
+const DialogTitle = DialogPrimitive.Title;
+const DialogDescription = DialogPrimitive.Description;
+
+function DialogHeader({ children }: { children: ReactNode }) {
+  return <div className="flex flex-col space-y-1.5 text-center sm:text-left">{children}</div>;
+}
+
+function DialogContent({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[1px]" />
+      <DialogPrimitive.Content
+        className={`fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-background p-6 shadow-lg outline-none ${className}`}
+      >
+        {children}
+      </DialogPrimitive.Content>
+    </DialogPrimitive.Portal>
+  );
+}
 
 const FILTER_TABS: Array<{ label: string; value: FilterTab }> = [
   { label: "All", value: "all" },
@@ -182,6 +224,7 @@ export default function AdminImportedLeadsClient() {
   >({});
   const [inviteLinks, setInviteLinks] = useState<Record<string, string>>({});
   const [inviteDeliveryById, setInviteDeliveryById] = useState<Record<string, string | null>>({});
+  const [whatsappModal, setWhatsappModal] = useState<WhatsAppModalState | null>(null);
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -345,6 +388,98 @@ export default function AdminImportedLeadsClient() {
     }
   }
 
+  async function callWhatsAppInviteApi(
+    userId: string,
+    phoneOverride?: string,
+    messageTemplate?: string,
+  ): Promise<WhatsAppInviteResult | null> {
+    const body: Record<string, string> = {};
+    if (phoneOverride) body.phoneOverride = phoneOverride;
+    if (messageTemplate) body.messageTemplate = messageTemplate;
+
+    const response = await fetch(`/api/admin/imported-leads/${userId}/whatsapp-invite`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = (await response.json()) as WhatsAppInviteResult & { error?: string };
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || "Unable to generate WhatsApp invite.");
+    }
+    return data;
+  }
+
+  async function handleOpenWhatsAppModal(row: ImportedLeadRow) {
+    setWhatsappModal({
+      row,
+      loading: true,
+      error: null,
+      result: null,
+      message: "",
+      editingPhone: false,
+      phoneOverride: row.phone,
+    });
+
+    try {
+      const result = await callWhatsAppInviteApi(row.userId);
+      setWhatsappModal((prev) =>
+        prev ? { ...prev, loading: false, result, message: result?.messagePreview ?? "" } : null,
+      );
+    } catch (err) {
+      setWhatsappModal((prev) =>
+        prev
+          ? { ...prev, loading: false, error: err instanceof Error ? err.message : "Error" }
+          : null,
+      );
+    }
+  }
+
+  async function handleWhatsAppPhoneChange(phoneOverride: string) {
+    if (!whatsappModal) return;
+    setWhatsappModal((prev) => (prev ? { ...prev, loading: true, error: null } : null));
+    try {
+      const result = await callWhatsAppInviteApi(whatsappModal.row.userId, phoneOverride);
+      setWhatsappModal((prev) =>
+        prev ? { ...prev, loading: false, result, message: result?.messagePreview ?? "" } : null,
+      );
+    } catch (err) {
+      setWhatsappModal((prev) =>
+        prev
+          ? { ...prev, loading: false, error: err instanceof Error ? err.message : "Error" }
+          : null,
+      );
+    }
+  }
+
+  function handleOpenWhatsApp() {
+    if (!whatsappModal?.result) return;
+    const { claimUrl, normalizedPhone } = whatsappModal.result;
+    const { row } = whatsappModal;
+    const currentMessage = whatsappModal.message;
+    const finalMessage = currentMessage.includes(claimUrl)
+      ? currentMessage
+      : currentMessage.trimEnd() + "\n\n" + claimUrl;
+    const waMePhone = normalizedPhone.replace(/^\+/, "");
+    const waUrl = `https://wa.me/${waMePhone}?text=${encodeURIComponent(finalMessage)}`;
+    window.open(waUrl, "_blank");
+    // optimistic row update — no full reload
+    setRows((prev) =>
+      prev.map((r) =>
+        r.userId === row.userId
+          ? {
+              ...r,
+              latestEvent: {
+                type: "whatsapp_invite",
+                notes: "",
+                createdAt: new Date().toISOString(),
+              },
+            }
+          : r,
+      ),
+    );
+    setWhatsappModal(null);
+  }
+
   function renderInviteDeliveryBadge(delivery: string | null) {
     switch (delivery) {
       case "sent":
@@ -416,7 +551,7 @@ export default function AdminImportedLeadsClient() {
                       Latest: {row.latestEvent ? formatLabel(row.latestEvent.type) : "No outreach yet"}
                     </p>
                   </td>
-                  <td className="py-3 pr-4">
+                      <td className="py-3 pr-4">
                     <span
                       className={`inline-flex rounded-full px-2 py-1 text-xs font-medium capitalize ${getBadgeClass(row.inviteStatus)}`}
                     >
@@ -425,6 +560,9 @@ export default function AdminImportedLeadsClient() {
                     <p className="mt-2 text-xs text-muted-foreground">
                       {row.onboardingCompleted ? "Onboarding complete" : "Awaiting landlord action"}
                     </p>
+                    {row.latestEvent?.type === "whatsapp_invite" ? (
+                      <p className="mt-1 text-xs text-green-600">WhatsApp link generated</p>
+                    ) : null}
                   </td>
                   <td className="py-3 pr-4">
                     <span
@@ -464,6 +602,28 @@ export default function AdminImportedLeadsClient() {
                             {row.inviteStatus === "claimed" || row.inviteStatus === "onboarded"
                               ? "Claimed - No invite needed"
                               : "Invite unavailable"}
+                          </span>
+                        )}
+                        {canSendInvite(row) && row.phone ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                            disabled={workingId === row.userId}
+                            onClick={() => void handleOpenWhatsAppModal(row)}
+                          >
+                            Send via WhatsApp
+                          </Button>
+                        ) : (
+                          <span
+                            className="inline-flex items-center rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground"
+                            title={
+                              row.inviteStatus === "claimed" || row.inviteStatus === "onboarded"
+                                ? "Landlord has already claimed their account"
+                                : "No phone number on file — WhatsApp unavailable"
+                            }
+                          >
+                            WhatsApp unavailable
                           </span>
                         )}
                         <Button
@@ -705,6 +865,143 @@ export default function AdminImportedLeadsClient() {
           ) : null}
         </SheetContent>
       </Sheet>
+
+      <Dialog
+        open={Boolean(whatsappModal)}
+        onOpenChange={(open) => {
+          if (!open) setWhatsappModal(null);
+        }}
+      >
+        <DialogContent className="w-full max-w-lg rounded-xl p-6">
+          {whatsappModal ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Send via WhatsApp</DialogTitle>
+                <DialogDescription>
+                  {whatsappModal.row.name} · {whatsappModal.row.listing?.title || "No listing"}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="mt-4 flex items-center gap-3">
+                {whatsappModal.editingPhone ? (
+                  <input
+                    className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+                    value={whatsappModal.phoneOverride}
+                    onChange={(e) =>
+                      setWhatsappModal((prev) =>
+                        prev ? { ...prev, phoneOverride: e.target.value } : null,
+                      )
+                    }
+                    onBlur={() => void handleWhatsAppPhoneChange(whatsappModal.phoneOverride)}
+                    placeholder="+263771234567"
+                  />
+                ) : (
+                  <span className="rounded-md border border-green-200 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700">
+                    {whatsappModal.result?.normalizedPhone || whatsappModal.row.phone || "No phone"}
+                  </span>
+                )}
+                <button
+                  className="text-xs text-blue-500 underline"
+                  onClick={() =>
+                    setWhatsappModal((prev) =>
+                      prev ? { ...prev, editingPhone: !prev.editingPhone } : null,
+                    )
+                  }
+                >
+                  {whatsappModal.editingPhone ? "Done" : "Edit phone"}
+                </button>
+              </div>
+
+              {whatsappModal.loading ? (
+                <div className="mt-6 flex items-center gap-3 text-sm text-muted-foreground">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-primary" />
+                  Generating secure link…
+                </div>
+              ) : whatsappModal.error ? (
+                <p className="mt-4 text-sm text-red-600">{whatsappModal.error}</p>
+              ) : whatsappModal.result ? (
+                <>
+                  <div className="mt-4">
+                    <label className="text-sm font-medium">Message</label>
+                    <textarea
+                      className="mt-1.5 w-full rounded-md border bg-background px-3 py-2 text-sm leading-relaxed"
+                      rows={7}
+                      value={whatsappModal.message}
+                      onChange={(e) =>
+                        setWhatsappModal((prev) =>
+                          prev ? { ...prev, message: e.target.value } : null,
+                        )
+                      }
+                    />
+                    <p
+                      className={`mt-1 text-right text-xs ${
+                        whatsappModal.message.length > 1000
+                          ? "text-amber-600"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {whatsappModal.message.length} / 1000 characters
+                      {whatsappModal.message.length > 1000 ? " — message is long" : ""}
+                    </p>
+                  </div>
+
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Claim link (auto-appended)
+                    </p>
+                    <div className="mt-1 break-all rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                      {whatsappModal.result.claimUrl}
+                    </div>
+                  </div>
+
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    ⏱ Link expires{" "}
+                    {new Date(whatsappModal.result.expiresAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
+
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      className="bg-green-600 text-white hover:bg-green-700"
+                      onClick={handleOpenWhatsApp}
+                    >
+                      Open WhatsApp
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const claimUrl = whatsappModal.result!.claimUrl;
+                        const msg = whatsappModal.message;
+                        const textToCopy = msg.includes(claimUrl)
+                          ? msg
+                          : msg.trimEnd() + "\n\n" + claimUrl;
+                        void navigator.clipboard.writeText(textToCopy);
+                      }}
+                    >
+                      Copy message
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void navigator.clipboard.writeText(whatsappModal.result!.claimUrl)}
+                    >
+                      Copy claim link
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setWhatsappModal(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              ) : null}
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

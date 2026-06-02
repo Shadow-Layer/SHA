@@ -21,6 +21,7 @@ const LandlordOutreachEventSchema = new Schema({
       "declined",
       "unreachable",
       "claimed",
+      "whatsapp_invite",
     ],
   },
   notes: { type: String },

@@ -70,6 +70,7 @@ type ImportedLeadEvent = {
     | "declined"
     | "unreachable"
     | "claimed"
+    | "whatsapp_invite"
     | null;
   notes?: string | null;
   createdAt?: Date | null;
