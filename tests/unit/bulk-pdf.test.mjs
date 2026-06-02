@@ -16,6 +16,17 @@ function buildMessage(template, landlordName, claimUrl) {
   return appendClaimLink(interpolated, claimUrl);
 }
 
+function sanitizePdfText(value) {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/\u00a0/g, " ")
+    .replace(/[–—]/g, "-")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/…/g, "...")
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "");
+}
+
 function normalizeUserIds(userIds) {
   return userIds
     .map((id) => (typeof id === "string" ? id.trim() : ""))
@@ -71,6 +82,13 @@ test("buildMessage interpolates landlord name and appends claim link once", () =
   assert.equal(message.split(url).length - 1, 1);
 });
 
+test("sanitizePdfText strips characters that PDFKit may not encode", () => {
+  assert.equal(
+    sanitizePdfText("Mthuli’s Place – “Block A” …"),
+    "Mthuli's Place - \"Block A\" ...",
+  );
+});
+
 test("isEligibleUser matches the bulk export contract", () => {
   assert.equal(
     isEligibleUser(
@@ -97,4 +115,3 @@ test("isEligibleUser matches the bulk export contract", () => {
 
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);
-

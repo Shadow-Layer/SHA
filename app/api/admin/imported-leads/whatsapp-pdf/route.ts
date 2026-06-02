@@ -36,6 +36,17 @@ const DEFAULT_MESSAGE_TEMPLATE =
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+function sanitizePdfText(value: string | null | undefined): string {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/\u00a0/g, " ")
+    .replace(/[–—]/g, "-")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/…/g, "...")
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "");
+}
+
 function readBody(body: RouteBody): string[] {
   const ids = Array.isArray(body.userIds) ? body.userIds : [];
   return ids
@@ -52,10 +63,11 @@ function buildPdfBuffer(items: PdfItem[], batchId: string): Promise<Buffer> {
     doc.on("error", reject);
     doc.on("end", () => resolve(Buffer.concat(chunks)));
 
+    doc.font("Helvetica");
     doc.fontSize(18).text("SHA Bulk WhatsApp PDF Export", { underline: true });
     doc.moveDown(0.5);
     doc.fontSize(10).fillColor("#6b7280");
-    doc.text(`Batch ID: ${batchId}`);
+    doc.text(`Batch ID: ${sanitizePdfText(batchId)}`);
     doc.text(`Generated at: ${new Date().toISOString()}`);
     doc.text(`Selected landlords: ${items.length}`);
     doc.moveDown();
@@ -66,26 +78,28 @@ function buildPdfBuffer(items: PdfItem[], batchId: string): Promise<Buffer> {
         doc.addPage();
       }
 
-      doc.fontSize(15).text(item.name);
+      doc.fontSize(15).text(sanitizePdfText(item.name));
       doc.moveDown(0.25);
       doc.fontSize(11).fillColor("#374151");
-      doc.text(`Phone: ${item.phone || "No phone number on file"}`);
-      doc.text(`Area: ${item.area || "-"}`);
-      doc.text(`Listing: ${item.listingTitle || "-"}`);
+      doc.text(`Phone: ${sanitizePdfText(item.phone || "No phone number on file")}`);
+      doc.text(`Area: ${sanitizePdfText(item.area || "-")}`);
+      doc.text(`Listing: ${sanitizePdfText(item.listingTitle || "-")}`);
       doc.moveDown(0.5);
       doc.fillColor("#111827");
       doc.fontSize(12).text("WhatsApp message preview:");
       doc.fontSize(10).fillColor("#374151");
-      doc.text(item.message, { width: 500 });
+      doc.text(sanitizePdfText(item.message), { width: 500 });
       doc.moveDown(0.5);
       doc.fillColor("#111827");
       doc.fontSize(12).text("Claim URL:");
       doc.fontSize(10).fillColor("#2563eb");
-      doc.text(item.claimUrl, { width: 500 });
+      doc.text(sanitizePdfText(item.claimUrl), { width: 500 });
       doc.moveDown(0.25);
       doc.fillColor("#374151");
       doc.text(
-        item.whatsappUrl ? `WhatsApp URL: ${item.whatsappUrl}` : "WhatsApp URL: unavailable",
+        sanitizePdfText(
+          item.whatsappUrl ? `WhatsApp URL: ${item.whatsappUrl}` : "WhatsApp URL: unavailable",
+        ),
       );
     });
 
@@ -94,11 +108,18 @@ function buildPdfBuffer(items: PdfItem[], batchId: string): Promise<Buffer> {
 }
 
 export async function POST(request: NextRequest) {
+  console.info("[whatsapp-pdf] request received");
+
   const session = await getAuthSession();
   if (!session?.user) {
+    console.warn("[whatsapp-pdf] unauthorized request");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (session.user.role !== "admin") {
+    console.warn("[whatsapp-pdf] forbidden request from non-admin user", {
+      userId: session.user.id,
+      role: session.user.role,
+    });
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -110,12 +131,20 @@ export async function POST(request: NextRequest) {
   }
 
   const userIds = readBody(body);
+  console.info("[whatsapp-pdf] parsed request body", {
+    userIdsCount: userIds.length,
+    batchId: body.batchId?.trim() || null,
+    hasCustomTemplate: Boolean(body.messageTemplate?.trim()),
+  });
+
   if (userIds.length === 0) {
+    console.warn("[whatsapp-pdf] request rejected: missing valid userIds");
     return NextResponse.json({ error: "userIds must be a non-empty array" }, { status: 400 });
   }
 
   const baseUrl = resolveBaseUrl(request);
   if (!baseUrl) {
+    console.error("[whatsapp-pdf] missing base URL; NEXTAUTH_URL/origin/x-forwarded-host not set");
     return NextResponse.json(
       { error: "Cannot determine base URL. Set NEXTAUTH_URL." },
       { status: 500 },
@@ -129,6 +158,10 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectDB();
+    console.info("[whatsapp-pdf] connected to database", {
+      batchId,
+      requestedCount: userIds.length,
+    });
 
     const users = await User.find({
       _id: { $in: userIds },
@@ -145,7 +178,13 @@ export async function POST(request: NextRequest) {
       .lean()
       .exec();
 
+    console.info("[whatsapp-pdf] loaded candidate landlords", {
+      requestedCount: userIds.length,
+      matchedCount: users.length,
+    });
+
     if (users.length === 0) {
+      console.warn("[whatsapp-pdf] no imported landlords matched request");
       return NextResponse.json({ error: "No imported landlords found" }, { status: 404 });
     }
 
@@ -163,6 +202,10 @@ export async function POST(request: NextRequest) {
       })
       .lean()
       .exec();
+
+    console.info("[whatsapp-pdf] loaded candidate listings", {
+      listingCount: listings.length,
+    });
 
     const listingByLandlord = new Map<
       string,
@@ -189,7 +232,16 @@ export async function POST(request: NextRequest) {
       );
     });
 
+    console.info("[whatsapp-pdf] filtered eligible landlords", {
+      eligibleCount: eligibleUsers.length,
+      rejectedCount: users.length - eligibleUsers.length,
+    });
+
     if (eligibleUsers.length === 0) {
+      console.warn("[whatsapp-pdf] no eligible landlords for bulk PDF export", {
+        requestedCount: userIds.length,
+        matchedCount: users.length,
+      });
       return NextResponse.json(
         { error: "No selected landlords are eligible for a bulk PDF export." },
         { status: 409 },
@@ -201,6 +253,9 @@ export async function POST(request: NextRequest) {
     for (const user of eligibleUsers) {
       const listing = listingByLandlord.get(String(user._id));
       if (!listing) {
+        console.warn("[whatsapp-pdf] skipping landlord because listing lookup failed", {
+          userId: String(user._id),
+        });
         continue;
       }
 
@@ -228,11 +283,22 @@ export async function POST(request: NextRequest) {
         },
       ).exec();
 
+      console.info("[whatsapp-pdf] updated invite state", {
+        userId: String(user._id),
+        hasPhone: Boolean(phone),
+        listingStatus: listing.status,
+      });
+
       if (listing.status === "imported_draft") {
         await Listing.updateOne(
           { landlordId: user._id, source: "pdf_import" },
           { $set: { status: "awaiting_landlord_claim" } },
         ).exec();
+
+        console.info("[whatsapp-pdf] listing moved to awaiting_landlord_claim", {
+          userId: String(user._id),
+          listingId: String(listing._id),
+        });
       }
 
       await LandlordOutreachEvent.create({
@@ -243,6 +309,11 @@ export async function POST(request: NextRequest) {
         notes: `Bulk WhatsApp PDF generated by admin | phone: ${phone || "missing"} | expires: ${inviteTokenExpiresAt.toISOString()}`,
         ...(createdById ? { createdBy: createdById } : {}),
         createdAt: now,
+      });
+
+      console.info("[whatsapp-pdf] outreach event created", {
+        userId: String(user._id),
+        listingId: String(listing._id),
       });
 
       pdfItems.push({
@@ -258,14 +329,25 @@ export async function POST(request: NextRequest) {
     }
 
     if (pdfItems.length === 0) {
+      console.warn("[whatsapp-pdf] no PDF items prepared after processing eligible landlords");
       return NextResponse.json(
         { error: "No selected landlords could be prepared for PDF export." },
         { status: 409 },
       );
     }
 
+    console.info("[whatsapp-pdf] building pdf buffer", {
+      itemCount: pdfItems.length,
+      batchId,
+    });
     const pdfBuffer = await buildPdfBuffer(pdfItems, batchId);
     const pdfBytes = new Uint8Array(pdfBuffer);
+
+    console.info("[whatsapp-pdf] pdf export completed", {
+      batchId,
+      exportCount: pdfItems.length,
+      byteLength: pdfBytes.byteLength,
+    });
 
     return new NextResponse(pdfBytes, {
       status: 200,
@@ -278,7 +360,11 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Bulk WhatsApp PDF export failed:", error);
+    console.error("[whatsapp-pdf] export failed", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      cause: error instanceof Error && "cause" in error ? (error as { cause?: unknown }).cause : undefined,
+    });
     return NextResponse.json(
       { error: "Unable to generate bulk WhatsApp PDF." },
       { status: 500 },
