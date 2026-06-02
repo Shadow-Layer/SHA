@@ -84,7 +84,9 @@ function buildPdfBuffer(items: PdfItem[], batchId: string): Promise<Buffer> {
       doc.text(item.claimUrl, { width: 500 });
       doc.moveDown(0.25);
       doc.fillColor("#374151");
-      doc.text(item.whatsappUrl ? `WhatsApp URL: ${item.whatsappUrl}` : "WhatsApp URL: unavailable");
+      doc.text(
+        item.whatsappUrl ? `WhatsApp URL: ${item.whatsappUrl}` : "WhatsApp URL: unavailable",
+      );
     });
 
     doc.end();
@@ -123,154 +125,163 @@ export async function POST(request: NextRequest) {
   const batchId = body.batchId?.trim() || crypto.randomUUID();
   const template = body.messageTemplate?.trim() || DEFAULT_MESSAGE_TEMPLATE;
   const now = new Date();
+  const createdById = mongoose.isValidObjectId(session.user.id) ? session.user.id : undefined;
 
-  await connectDB();
+  try {
+    await connectDB();
 
-  const users = await User.find({
-    _id: { $in: userIds },
-    role: "landlord",
-    source: "pdf_import",
-  })
-    .select({
-      _id: 1,
-      name: 1,
-      phone: 1,
-      inviteStatus: 1,
-      onboardingCompleted: 1,
+    const users = await User.find({
+      _id: { $in: userIds },
+      role: "landlord",
+      source: "pdf_import",
     })
-    .lean()
-    .exec();
+      .select({
+        _id: 1,
+        name: 1,
+        phone: 1,
+        inviteStatus: 1,
+        onboardingCompleted: 1,
+      })
+      .lean()
+      .exec();
 
-  if (users.length === 0) {
-    return NextResponse.json({ error: "No imported landlords found" }, { status: 404 });
-  }
+    if (users.length === 0) {
+      return NextResponse.json({ error: "No imported landlords found" }, { status: 404 });
+    }
 
-  const listings = await Listing.find({
-    landlordId: { $in: users.map((user) => user._id) },
-    source: "pdf_import",
-  })
-    .sort({ createdAt: -1 })
-    .select({
-      _id: 1,
-      landlordId: 1,
-      title: 1,
-      area: 1,
-      status: 1,
+    const listings = await Listing.find({
+      landlordId: { $in: users.map((user) => user._id) },
+      source: "pdf_import",
     })
-    .lean()
-    .exec();
+      .sort({ createdAt: -1 })
+      .select({
+        _id: 1,
+        landlordId: 1,
+        title: 1,
+        area: 1,
+        status: 1,
+      })
+      .lean()
+      .exec();
 
-  const listingByLandlord = new Map<
-    string,
-    { _id: mongoose.Types.ObjectId | string; title: string; area: string; status: string }
-  >();
-  for (const listing of listings) {
-    const landlordId = String(listing.landlordId);
-    if (!listingByLandlord.has(landlordId)) {
-      listingByLandlord.set(landlordId, {
-        _id: listing._id,
-        title: listing.title,
+    const listingByLandlord = new Map<
+      string,
+      { _id: mongoose.Types.ObjectId | string; title: string; area: string; status: string }
+    >();
+    for (const listing of listings) {
+      const landlordId = String(listing.landlordId);
+      if (!listingByLandlord.has(landlordId)) {
+        listingByLandlord.set(landlordId, {
+          _id: listing._id,
+          title: listing.title,
+          area: listing.area,
+          status: listing.status,
+        });
+      }
+    }
+
+    const eligibleUsers = users.filter((user) => {
+      const listing = listingByLandlord.get(String(user._id));
+      return (
+        listing &&
+        !["claimed", "onboarded"].includes(user.inviteStatus || "") &&
+        ["imported_draft", "awaiting_landlord_claim"].includes(listing.status)
+      );
+    });
+
+    if (eligibleUsers.length === 0) {
+      return NextResponse.json(
+        { error: "No selected landlords are eligible for a bulk PDF export." },
+        { status: 409 },
+      );
+    }
+
+    const pdfItems: PdfItem[] = [];
+
+    for (const user of eligibleUsers) {
+      const listing = listingByLandlord.get(String(user._id));
+      if (!listing) {
+        continue;
+      }
+
+      const phone = user.phone?.trim() || "";
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const inviteTokenHash = await bcrypt.hash(rawToken, 10);
+      const inviteTokenExpiresAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+      const claimUrl = buildLandlordClaimUrl(baseUrl, rawToken);
+      const landlordName = user.name?.trim() || "there";
+      const interpolated = template
+        .replace(/\{landlordName\}/g, landlordName)
+        .replace(/\{claimLink\}/g, claimUrl);
+      const finalMessage = appendClaimLink(interpolated, claimUrl);
+      const waResult = buildWhatsAppLink(phone, finalMessage);
+
+      await User.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            inviteTokenHash,
+            inviteTokenExpiresAt,
+            isInvited: true,
+            inviteStatus: "invited",
+          },
+        },
+      ).exec();
+
+      if (listing.status === "imported_draft") {
+        await Listing.updateOne(
+          { landlordId: user._id, source: "pdf_import" },
+          { $set: { status: "awaiting_landlord_claim" } },
+        ).exec();
+      }
+
+      await LandlordOutreachEvent.create({
+        landlordId: user._id,
+        listingId: listing._id,
+        type: "bulk_pdf_generated",
+        batchId,
+        notes: `Bulk WhatsApp PDF generated by admin | phone: ${phone || "missing"} | expires: ${inviteTokenExpiresAt.toISOString()}`,
+        ...(createdById ? { createdBy: createdById } : {}),
+        createdAt: now,
+      });
+
+      pdfItems.push({
+        userId: String(user._id),
+        name: user.name?.trim() || "Imported landlord",
+        phone,
+        claimUrl,
+        message: finalMessage,
+        whatsappUrl: waResult?.whatsappUrl || null,
+        listingTitle: listing.title,
         area: listing.area,
-        status: listing.status,
       });
     }
-  }
 
-  const eligibleUsers = users.filter((user) => {
-    const listing = listingByLandlord.get(String(user._id));
-    return (
-      listing &&
-      !["claimed", "onboarded"].includes(user.inviteStatus || "") &&
-      ["imported_draft", "awaiting_landlord_claim"].includes(listing.status)
-    );
-  });
-
-  if (eligibleUsers.length === 0) {
-    return NextResponse.json(
-      { error: "No selected landlords are eligible for a bulk PDF export." },
-      { status: 409 },
-    );
-  }
-
-  const pdfItems: PdfItem[] = [];
-
-  for (const user of eligibleUsers) {
-    const listing = listingByLandlord.get(String(user._id));
-    if (!listing) {
-      continue;
+    if (pdfItems.length === 0) {
+      return NextResponse.json(
+        { error: "No selected landlords could be prepared for PDF export." },
+        { status: 409 },
+      );
     }
 
-    const phone = user.phone?.trim() || "";
-    const rawToken = crypto.randomBytes(32).toString("hex");
-    const inviteTokenHash = await bcrypt.hash(rawToken, 10);
-    const inviteTokenExpiresAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-    const claimUrl = buildLandlordClaimUrl(baseUrl, rawToken);
-    const landlordName = user.name?.trim() || "there";
-    const interpolated = template
-      .replace(/\{landlordName\}/g, landlordName)
-      .replace(/\{claimLink\}/g, claimUrl);
-    const finalMessage = appendClaimLink(interpolated, claimUrl);
-    const waResult = buildWhatsAppLink(phone, finalMessage);
+    const pdfBuffer = await buildPdfBuffer(pdfItems, batchId);
+    const pdfBytes = new Uint8Array(pdfBuffer);
 
-    await User.updateOne(
-      { _id: user._id },
-      {
-        $set: {
-          inviteTokenHash,
-          inviteTokenExpiresAt,
-          isInvited: true,
-          inviteStatus: "invited",
-        },
+    return new NextResponse(pdfBytes, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename=\"sha-whatsapp-pdf-${batchId}.pdf\"`,
+        "Cache-Control": "no-store",
+        "X-Batch-Id": batchId,
+        "X-Export-Count": String(pdfItems.length),
       },
-    ).exec();
-
-    if (listing.status === "imported_draft") {
-      await Listing.updateOne(
-        { landlordId: user._id, source: "pdf_import" },
-        { $set: { status: "awaiting_landlord_claim" } },
-      ).exec();
-    }
-
-    await LandlordOutreachEvent.create({
-      landlordId: user._id,
-      listingId: listing._id,
-      type: "bulk_pdf_generated",
-      batchId,
-      notes: `Bulk WhatsApp PDF generated by admin · phone: ${phone || "missing"} · expires: ${inviteTokenExpiresAt.toISOString()}`,
-      createdBy: session.user.id,
-      createdAt: now,
     });
-
-    pdfItems.push({
-      userId: String(user._id),
-      name: user.name?.trim() || "Imported landlord",
-      phone,
-      claimUrl,
-      message: finalMessage,
-      whatsappUrl: waResult?.whatsappUrl || null,
-      listingTitle: listing.title,
-      area: listing.area,
-    });
-  }
-
-  if (pdfItems.length === 0) {
+  } catch (error) {
+    console.error("Bulk WhatsApp PDF export failed:", error);
     return NextResponse.json(
-      { error: "No selected landlords could be prepared for PDF export." },
-      { status: 409 },
+      { error: "Unable to generate bulk WhatsApp PDF." },
+      { status: 500 },
     );
   }
-
-  const pdfBuffer = await buildPdfBuffer(pdfItems, batchId);
-  const pdfBytes = new Uint8Array(pdfBuffer);
-
-  return new NextResponse(pdfBytes, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename=\"sha-whatsapp-pdf-${batchId}.pdf\"`,
-      "Cache-Control": "no-store",
-      "X-Batch-Id": batchId,
-      "X-Export-Count": String(pdfItems.length),
-    },
-  });
 }
