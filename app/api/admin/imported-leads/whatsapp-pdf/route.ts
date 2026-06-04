@@ -1,6 +1,4 @@
 import crypto from "node:crypto";
-import { createRequire } from "node:module";
-import path from "node:path";
 
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
@@ -36,9 +34,6 @@ const DEFAULT_MESSAGE_TEMPLATE =
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-const PDF_FONT_PATH = path.join(process.cwd(), "app", "fonts", "NotoSans-Regular.ttf");
-const require = createRequire(import.meta.url);
-const PDFDocument = require("pdfkit/js/pdfkit.standalone.js") as typeof import("pdfkit");
 
 function sanitizePdfText(value: string | null | undefined): string {
   return String(value ?? "")
@@ -49,6 +44,183 @@ function sanitizePdfText(value: string | null | undefined): string {
     .replace(/[‘’]/g, "'")
     .replace(/…/g, "...")
     .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "");
+}
+
+function escapePdfText(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+function wrapText(value: string, maxChars: number): string[] {
+  const normalized = sanitizePdfText(value).trim();
+  if (!normalized) return [""];
+
+  const words = normalized.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length > maxChars && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+
+  if (current) {
+    lines.push(current);
+  }
+
+  return lines.length > 0 ? lines : [""];
+}
+
+type PdfTextRun = {
+  text: string;
+  size: number;
+  color?: [number, number, number];
+};
+
+function buildTextStream(runs: PdfTextRun[], options: { x: number; y: number; leading?: number }): string {
+  const leading = options.leading ?? 14;
+  const commands: string[] = ["BT"];
+  let firstLine = true;
+
+  for (const run of runs) {
+    const color = run.color ?? [0, 0, 0];
+    commands.push(`${color[0].toFixed(3)} ${color[1].toFixed(3)} ${color[2].toFixed(3)} rg`);
+    commands.push(`/F1 ${run.size} Tf`);
+
+    const maxChars = Math.max(18, Math.floor(500 / (run.size * 0.55)));
+    const lines = wrapText(run.text, maxChars);
+
+    lines.forEach((line, index) => {
+      if (firstLine) {
+        commands.push(`1 0 0 1 ${options.x} ${options.y} Tm`);
+        firstLine = false;
+      } else if (index === 0) {
+        commands.push(`0 -${leading} Td`);
+      } else {
+        commands.push(`0 -${leading} Td`);
+      }
+      commands.push(`(${escapePdfText(line)}) Tj`);
+    });
+  }
+
+  commands.push("ET");
+  return commands.join("\n");
+}
+
+function buildPageContent(title: string, subtitleLines: string[], item: PdfItem | null): string {
+  const blocks: string[] = [];
+
+  blocks.push(buildTextStream([{ text: title, size: 18 }], { x: 48, y: 780, leading: 22 }));
+  blocks.push(
+    buildTextStream(
+      subtitleLines.map((text) => ({ text, size: 10, color: [0.42, 0.45, 0.49] })),
+      { x: 48, y: 755, leading: 14 },
+    ),
+  );
+
+  if (item) {
+    blocks.push(
+      buildTextStream(
+        [
+          { text: item.name, size: 15 },
+          { text: `Phone: ${item.phone || "No phone number on file"}`, size: 11, color: [0.22, 0.26, 0.31] },
+          { text: `Area: ${item.area || "-"}`, size: 11, color: [0.22, 0.26, 0.31] },
+          { text: `Listing: ${item.listingTitle || "-"}`, size: 11, color: [0.22, 0.26, 0.31] },
+          { text: "WhatsApp message preview:", size: 12 },
+          { text: item.message, size: 10, color: [0.22, 0.26, 0.31] },
+          { text: "Claim URL:", size: 12 },
+          { text: item.claimUrl, size: 10, color: [0.15, 0.39, 0.98] },
+          {
+            text: item.whatsappUrl ? `WhatsApp URL: ${item.whatsappUrl}` : "WhatsApp URL: unavailable",
+            size: 10,
+            color: [0.22, 0.26, 0.31],
+          },
+        ],
+        { x: 48, y: 705, leading: 15 },
+      ),
+    );
+  } else {
+    blocks.push(
+      buildTextStream(
+        [
+          { text: "Summary", size: 12 },
+          { text: `Selected landlords: ${subtitleLines[2] ?? ""}`, size: 10, color: [0.22, 0.26, 0.31] },
+        ],
+        { x: 48, y: 705, leading: 16 },
+      ),
+    );
+  }
+
+  return blocks.join("\n");
+}
+
+function buildPdfBuffer(items: PdfItem[], batchId: string): Buffer {
+  const totalPages = items.length + 1;
+  const totalObjects = 3 + totalPages * 2;
+  const objects: string[] = new Array(totalObjects + 1).fill("");
+
+  const summaryLines = [
+    `Batch ID: ${sanitizePdfText(batchId)}`,
+    `Generated at: ${new Date().toISOString()}`,
+    `Selected landlords: ${items.length}`,
+  ];
+
+  const pageContentStrings = [
+    buildPageContent("SHA Bulk WhatsApp PDF Export", summaryLines, null),
+    ...items.map((item, index) =>
+      buildPageContent(`Landlord ${index + 1} of ${items.length}`, summaryLines, item),
+    ),
+  ];
+
+  objects[1] = `<< /Type /Catalog /Pages 2 0 R >>`;
+  objects[2] = `<< /Type /Pages /Kids [${Array.from({ length: totalPages }, (_, idx) => `${4 + idx * 2} 0 R`).join(" ")}] /Count ${totalPages} >>`;
+  objects[3] = `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>`;
+
+  pageContentStrings.forEach((content, index) => {
+    const pageId = 4 + index * 2;
+    const contentId = pageId + 1;
+    const contentLength = Buffer.byteLength(content, "utf8");
+    objects[contentId] = `<< /Length ${contentLength} >>\nstream\n${content}\nendstream`;
+    objects[pageId] =
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentId} 0 R >>`;
+  });
+
+  const header = Buffer.from("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n", "binary");
+  const chunks: Buffer[] = [header];
+  const offsets: number[] = [0];
+  let position = header.length;
+
+  for (let id = 1; id <= totalObjects; id += 1) {
+    const body = objects[id];
+    if (!body) {
+      throw new Error(`Missing PDF object ${id}`);
+    }
+    const objectBuffer = Buffer.from(`${id} 0 obj\n${body}\nendobj\n`, "utf8");
+    offsets.push(position);
+    chunks.push(objectBuffer);
+    position += objectBuffer.length;
+  }
+
+  const xrefStart = position;
+  const xrefLines = ["xref", `0 ${totalObjects + 1}`, "0000000000 65535 f "];
+  for (let id = 1; id <= totalObjects; id += 1) {
+    xrefLines.push(`${offsets[id].toString().padStart(10, "0")} 00000 n `);
+  }
+
+  const trailer = [
+    "trailer",
+    `<< /Size ${totalObjects + 1} /Root 1 0 R >>`,
+    "startxref",
+    String(xrefStart),
+    "%%EOF",
+  ].join("\n");
+
+  chunks.push(Buffer.from(`${xrefLines.join("\n")}\n${trailer}\n`, "utf8"));
+  return Buffer.concat(chunks);
 }
 
 function createTracer() {
@@ -73,60 +245,6 @@ function readBody(body: RouteBody): string[] {
   return ids
     .map((id) => (typeof id === "string" ? id.trim() : ""))
     .filter((id) => mongoose.isValidObjectId(id));
-}
-
-function buildPdfBuffer(items: PdfItem[], batchId: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 48, size: "A4" });
-    const chunks: Buffer[] = [];
-
-    doc.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
-    doc.on("error", reject);
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-
-    doc.registerFont("NotoSans", PDF_FONT_PATH);
-    doc.font("NotoSans");
-    doc.fontSize(18).text("SHA Bulk WhatsApp PDF Export", { underline: true });
-    doc.moveDown(0.5);
-    doc.fontSize(10).fillColor("#6b7280");
-    doc.text(`Batch ID: ${sanitizePdfText(batchId)}`);
-    doc.text(`Generated at: ${new Date().toISOString()}`);
-    doc.text(`Selected landlords: ${items.length}`);
-    doc.moveDown();
-    doc.fillColor("#111827");
-
-    items.forEach((item, index) => {
-      if (index > 0) {
-        doc.addPage();
-      }
-
-      doc.fontSize(15).text(sanitizePdfText(item.name));
-      doc.moveDown(0.25);
-      doc.fontSize(11).fillColor("#374151");
-      doc.text(`Phone: ${sanitizePdfText(item.phone || "No phone number on file")}`);
-      doc.text(`Area: ${sanitizePdfText(item.area || "-")}`);
-      doc.text(`Listing: ${sanitizePdfText(item.listingTitle || "-")}`);
-      doc.moveDown(0.5);
-      doc.fillColor("#111827");
-      doc.fontSize(12).text("WhatsApp message preview:");
-      doc.fontSize(10).fillColor("#374151");
-      doc.text(sanitizePdfText(item.message), { width: 500 });
-      doc.moveDown(0.5);
-      doc.fillColor("#111827");
-      doc.fontSize(12).text("Claim URL:");
-      doc.fontSize(10).fillColor("#2563eb");
-      doc.text(sanitizePdfText(item.claimUrl), { width: 500 });
-      doc.moveDown(0.25);
-      doc.fillColor("#374151");
-      doc.text(
-        sanitizePdfText(
-          item.whatsappUrl ? `WhatsApp URL: ${item.whatsappUrl}` : "WhatsApp URL: unavailable",
-        ),
-      );
-    });
-
-    doc.end();
-  });
 }
 
 export async function POST(request: NextRequest) {
@@ -343,7 +461,7 @@ export async function POST(request: NextRequest) {
     }
 
     tracer.log(`building pdf buffer itemCount=${pdfItems.length} batchId=${batchId}`);
-    const pdfBuffer = await buildPdfBuffer(pdfItems, batchId);
+    const pdfBuffer = buildPdfBuffer(pdfItems, batchId);
     const pdfBytes = new Uint8Array(pdfBuffer);
 
     tracer.log(
@@ -361,9 +479,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    tracer.error(
-      `export failed message=${error instanceof Error ? error.message : String(error)}`,
-    );
+    tracer.error(`export failed message=${error instanceof Error ? error.message : String(error)}`);
     if (error instanceof Error && error.stack) {
       console.error(error.stack);
     }
