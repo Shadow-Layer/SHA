@@ -3,7 +3,7 @@ import path from "node:path";
 
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
-import PDFDocument from "pdfkit";
+import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
 import { NextRequest, NextResponse } from "next/server";
 
 import { resolveBaseUrl, buildLandlordClaimUrl } from "@/lib/admin/invite-helpers";
