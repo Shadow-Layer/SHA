@@ -47,6 +47,23 @@ function sanitizePdfText(value: string | null | undefined): string {
     .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "");
 }
 
+function createTracer() {
+  const trace: string[] = [];
+  const log = (message: string) => {
+    trace.push(message);
+    console.log(`[whatsapp-pdf] ${message}`);
+  };
+  const warn = (message: string) => {
+    trace.push(`WARN: ${message}`);
+    console.log(`[whatsapp-pdf] WARN: ${message}`);
+  };
+  const error = (message: string) => {
+    trace.push(`ERROR: ${message}`);
+    console.error(`[whatsapp-pdf] ERROR: ${message}`);
+  };
+  return { trace, log, warn, error };
+}
+
 function readBody(body: RouteBody): string[] {
   const ids = Array.isArray(body.userIds) ? body.userIds : [];
   return ids
@@ -108,18 +125,16 @@ function buildPdfBuffer(items: PdfItem[], batchId: string): Promise<Buffer> {
 }
 
 export async function POST(request: NextRequest) {
-  console.info("[whatsapp-pdf] request received");
+  const tracer = createTracer();
+  tracer.log("request received");
 
   const session = await getAuthSession();
   if (!session?.user) {
-    console.warn("[whatsapp-pdf] unauthorized request");
+    tracer.warn("unauthorized request");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (session.user.role !== "admin") {
-    console.warn("[whatsapp-pdf] forbidden request from non-admin user", {
-      userId: session.user.id,
-      role: session.user.role,
-    });
+    tracer.warn(`forbidden request from non-admin user userId=${session.user.id} role=${session.user.role}`);
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -131,22 +146,23 @@ export async function POST(request: NextRequest) {
   }
 
   const userIds = readBody(body);
-  console.info("[whatsapp-pdf] parsed request body", {
-    userIdsCount: userIds.length,
-    batchId: body.batchId?.trim() || null,
-    hasCustomTemplate: Boolean(body.messageTemplate?.trim()),
-  });
+  tracer.log(
+    `parsed request body userIdsCount=${userIds.length} batchId=${body.batchId?.trim() || "null"} hasCustomTemplate=${Boolean(body.messageTemplate?.trim())}`,
+  );
 
   if (userIds.length === 0) {
-    console.warn("[whatsapp-pdf] request rejected: missing valid userIds");
-    return NextResponse.json({ error: "userIds must be a non-empty array" }, { status: 400 });
+    tracer.warn("request rejected: missing valid userIds");
+    return NextResponse.json(
+      { error: "userIds must be a non-empty array", debug: tracer.trace },
+      { status: 400 },
+    );
   }
 
   const baseUrl = resolveBaseUrl(request);
   if (!baseUrl) {
-    console.error("[whatsapp-pdf] missing base URL; NEXTAUTH_URL/origin/x-forwarded-host not set");
+    tracer.error("missing base URL; NEXTAUTH_URL/origin/x-forwarded-host not set");
     return NextResponse.json(
-      { error: "Cannot determine base URL. Set NEXTAUTH_URL." },
+      { error: "Cannot determine base URL. Set NEXTAUTH_URL.", debug: tracer.trace },
       { status: 500 },
     );
   }
@@ -158,10 +174,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectDB();
-    console.info("[whatsapp-pdf] connected to database", {
-      batchId,
-      requestedCount: userIds.length,
-    });
+    tracer.log(`connected to database batchId=${batchId} requestedCount=${userIds.length}`);
 
     const users = await User.find({
       _id: { $in: userIds },
@@ -178,14 +191,14 @@ export async function POST(request: NextRequest) {
       .lean()
       .exec();
 
-    console.info("[whatsapp-pdf] loaded candidate landlords", {
-      requestedCount: userIds.length,
-      matchedCount: users.length,
-    });
+    tracer.log(`loaded candidate landlords requestedCount=${userIds.length} matchedCount=${users.length}`);
 
     if (users.length === 0) {
-      console.warn("[whatsapp-pdf] no imported landlords matched request");
-      return NextResponse.json({ error: "No imported landlords found" }, { status: 404 });
+      tracer.warn("no imported landlords matched request");
+      return NextResponse.json(
+        { error: "No imported landlords found", debug: tracer.trace },
+        { status: 404 },
+      );
     }
 
     const listings = await Listing.find({
@@ -203,9 +216,7 @@ export async function POST(request: NextRequest) {
       .lean()
       .exec();
 
-    console.info("[whatsapp-pdf] loaded candidate listings", {
-      listingCount: listings.length,
-    });
+    tracer.log(`loaded candidate listings listingCount=${listings.length}`);
 
     const listingByLandlord = new Map<
       string,
@@ -232,18 +243,16 @@ export async function POST(request: NextRequest) {
       );
     });
 
-    console.info("[whatsapp-pdf] filtered eligible landlords", {
-      eligibleCount: eligibleUsers.length,
-      rejectedCount: users.length - eligibleUsers.length,
-    });
+    tracer.log(
+      `filtered eligible landlords eligibleCount=${eligibleUsers.length} rejectedCount=${users.length - eligibleUsers.length}`,
+    );
 
     if (eligibleUsers.length === 0) {
-      console.warn("[whatsapp-pdf] no eligible landlords for bulk PDF export", {
-        requestedCount: userIds.length,
-        matchedCount: users.length,
-      });
+      tracer.warn(
+        `no eligible landlords for bulk PDF export requestedCount=${userIds.length} matchedCount=${users.length}`,
+      );
       return NextResponse.json(
-        { error: "No selected landlords are eligible for a bulk PDF export." },
+        { error: "No selected landlords are eligible for a bulk PDF export.", debug: tracer.trace },
         { status: 409 },
       );
     }
@@ -253,9 +262,7 @@ export async function POST(request: NextRequest) {
     for (const user of eligibleUsers) {
       const listing = listingByLandlord.get(String(user._id));
       if (!listing) {
-        console.warn("[whatsapp-pdf] skipping landlord because listing lookup failed", {
-          userId: String(user._id),
-        });
+        tracer.warn(`skipping landlord because listing lookup failed userId=${String(user._id)}`);
         continue;
       }
 
@@ -283,11 +290,9 @@ export async function POST(request: NextRequest) {
         },
       ).exec();
 
-      console.info("[whatsapp-pdf] updated invite state", {
-        userId: String(user._id),
-        hasPhone: Boolean(phone),
-        listingStatus: listing.status,
-      });
+      tracer.log(
+        `updated invite state userId=${String(user._id)} hasPhone=${Boolean(phone)} listingStatus=${listing.status}`,
+      );
 
       if (listing.status === "imported_draft") {
         await Listing.updateOne(
@@ -295,10 +300,9 @@ export async function POST(request: NextRequest) {
           { $set: { status: "awaiting_landlord_claim" } },
         ).exec();
 
-        console.info("[whatsapp-pdf] listing moved to awaiting_landlord_claim", {
-          userId: String(user._id),
-          listingId: String(listing._id),
-        });
+        tracer.log(
+          `listing moved to awaiting_landlord_claim userId=${String(user._id)} listingId=${String(listing._id)}`,
+        );
       }
 
       await LandlordOutreachEvent.create({
@@ -311,10 +315,7 @@ export async function POST(request: NextRequest) {
         createdAt: now,
       });
 
-      console.info("[whatsapp-pdf] outreach event created", {
-        userId: String(user._id),
-        listingId: String(listing._id),
-      });
+      tracer.log(`outreach event created userId=${String(user._id)} listingId=${String(listing._id)}`);
 
       pdfItems.push({
         userId: String(user._id),
@@ -329,25 +330,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (pdfItems.length === 0) {
-      console.warn("[whatsapp-pdf] no PDF items prepared after processing eligible landlords");
+      tracer.warn("no PDF items prepared after processing eligible landlords");
       return NextResponse.json(
-        { error: "No selected landlords could be prepared for PDF export." },
+        { error: "No selected landlords could be prepared for PDF export.", debug: tracer.trace },
         { status: 409 },
       );
     }
 
-    console.info("[whatsapp-pdf] building pdf buffer", {
-      itemCount: pdfItems.length,
-      batchId,
-    });
+    tracer.log(`building pdf buffer itemCount=${pdfItems.length} batchId=${batchId}`);
     const pdfBuffer = await buildPdfBuffer(pdfItems, batchId);
     const pdfBytes = new Uint8Array(pdfBuffer);
 
-    console.info("[whatsapp-pdf] pdf export completed", {
-      batchId,
-      exportCount: pdfItems.length,
-      byteLength: pdfBytes.byteLength,
-    });
+    tracer.log(
+      `pdf export completed batchId=${batchId} exportCount=${pdfItems.length} byteLength=${pdfBytes.byteLength}`,
+    );
 
     return new NextResponse(pdfBytes, {
       status: 200,
@@ -360,13 +356,14 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[whatsapp-pdf] export failed", {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      cause: error instanceof Error && "cause" in error ? (error as { cause?: unknown }).cause : undefined,
-    });
+    tracer.error(
+      `export failed message=${error instanceof Error ? error.message : String(error)}`,
+    );
+    if (error instanceof Error && error.stack) {
+      console.error(error.stack);
+    }
     return NextResponse.json(
-      { error: "Unable to generate bulk WhatsApp PDF." },
+      { error: "Unable to generate bulk WhatsApp PDF.", debug: tracer.trace },
       { status: 500 },
     );
   }

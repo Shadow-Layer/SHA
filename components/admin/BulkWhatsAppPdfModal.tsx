@@ -62,7 +62,19 @@ export default function BulkWhatsAppPdfModal({ open, rows, onOpenChange, onGener
       });
 
       if (!response.ok) {
-        const data = (await response.json().catch(() => ({}))) as { error?: string };
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          debug?: string[];
+        };
+        console.error("[whatsapp-pdf] export failed", {
+          status: response.status,
+          statusText: response.statusText,
+          error: data.error,
+          debug: data.debug,
+        });
+        if (data.debug?.length) {
+          console.error("[whatsapp-pdf] backend trace", data.debug);
+        }
         throw new Error(data.error || "Unable to generate bulk WhatsApp PDF.");
       }
 
@@ -86,6 +98,7 @@ export default function BulkWhatsAppPdfModal({ open, rows, onOpenChange, onGener
       });
       onOpenChange(false);
     } catch (generateError) {
+      console.error("[whatsapp-pdf] client error", generateError);
       setError(
         generateError instanceof Error ? generateError.message : "Unable to generate PDF.",
       );
