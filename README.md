@@ -196,3 +196,30 @@ The admin imported-leads dashboard includes an optional **Send via WhatsApp** ac
 - Raw claim tokens are **never** stored in outreach event logs.
 - Only the normalised phone number and a redacted message preview are logged.
 - The `wa.me` URL format is: `https://wa.me/<number_without_plus>?text=<url_encoded_message>`
+
+### Bulk WhatsApp PDF
+
+Use this flow when you need a downloadable outreach packet for multiple imported landlords:
+
+1. Select the landlords in the admin imported-leads table.
+2. Click **Export WhatsApp PDF**.
+3. Edit the message template in the modal if needed.
+4. Click **Generate PDF** to download the batch PDF.
+
+Supported template placeholders:
+
+- `{landlordName}`
+- `{claimLink}`
+- `{phone}`
+- `{expiresAt}`
+- `{listingTitle}`
+- `{address}`
+
+Notes:
+
+- `{claimLink}` is required and is automatically appended if it is removed from the template.
+- `wa.me` links open WhatsApp with a pre-filled message, but they do **not** auto-send messages.
+- Production claim links always use `https://studenthousingarchive.cfd/claim/{token}`.
+- Phone numbers should include a country code; numbers that start with `0` are prefixed with Zimbabwe code `263`.
+- PDFs contain sensitive claim links, so handle them securely and do not share them publicly.
+- Invalid or missing phone numbers are skipped, and the skip count is shown in the success banner.

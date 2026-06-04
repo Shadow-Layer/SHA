@@ -533,8 +533,10 @@ export default function AdminImportedLeadsClient() {
     }
   }
 
-  function handleBulkPdfGenerated(result: { batchId: string; count: number }) {
-    setBulkSuccessBanner(`Generated a WhatsApp PDF for ${result.count} landlord(s). Batch ID: ${result.batchId}`);
+  function handleBulkPdfGenerated(result: { batchId: string; count: number; skipped: number }) {
+    setBulkSuccessBanner(
+      `Generated WhatsApp PDF for ${result.count} landlord(s). ${result.skipped} skipped due to invalid phone numbers. Batch ID: ${result.batchId}`,
+    );
     setSelectedIds([]);
   }
 

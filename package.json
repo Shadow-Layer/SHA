@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test:e2e": "node tests/e2e/runner.mjs",
     "test:e2e:ci": "node tests/e2e/runner.mjs",
+    "test:unit": "node tests/unit/whatsapp.test.mjs && node tests/unit/bulk-pdf.test.mjs",
     "type-check": "tsc --noEmit",
     "verify": "npm run lint && npm run type-check",
     "verify:launch": "npm run verify && npm run test:e2e:ci"

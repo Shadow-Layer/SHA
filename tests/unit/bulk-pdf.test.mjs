@@ -9,10 +9,17 @@ function buildClaimUrl(baseUrl, rawToken) {
   return `${baseUrl.replace(/\/$/, "")}/claim/${rawToken}`;
 }
 
-function buildMessage(template, landlordName, claimUrl) {
+function buildMessage(template, landlordName, claimUrl, details = {}) {
   const interpolated = template
     .replace(/\{landlordName\}/g, landlordName)
-    .replace(/\{claimLink\}/g, claimUrl);
+    .replace(/\{claimLink\}/g, claimUrl)
+    .replace(/\{phone\}/g, details.phone ?? "")
+    .replace(
+      /\{expiresAt\}/g,
+      details.expiresAt instanceof Date ? details.expiresAt.toISOString() : details.expiresAt ?? "",
+    )
+    .replace(/\{listingTitle\}/g, details.listingTitle ?? "")
+    .replace(/\{address\}/g, details.address ?? "");
   return appendClaimLink(interpolated, claimUrl);
 }
 
@@ -80,6 +87,72 @@ test("buildMessage interpolates landlord name and appends claim link once", () =
   const message = buildMessage("Hello {landlordName}, link: {claimLink}", "Tariro", url);
   assert.ok(message.includes("Tariro"));
   assert.equal(message.split(url).length - 1, 1);
+});
+
+test("buildMessage replaces the phone placeholder", () => {
+  const url = "https://sha.co.zw/claim/abc123";
+  const message = buildMessage("Phone: {phone}", "Tariro", url, {
+    phone: "+263771234567",
+  });
+  assert.ok(message.includes("+263771234567"));
+});
+
+test("buildMessage replaces the expiresAt placeholder with ISO text", () => {
+  const url = "https://sha.co.zw/claim/abc123";
+  const expiresAt = new Date("2026-06-04T12:34:56.000Z");
+  const message = buildMessage("Expires: {expiresAt}", "Tariro", url, {
+    expiresAt,
+  });
+  assert.ok(message.includes(expiresAt.toISOString()));
+});
+
+test("buildMessage replaces the listingTitle placeholder", () => {
+  const url = "https://sha.co.zw/claim/abc123";
+  const message = buildMessage("Listing: {listingTitle}", "Tariro", url, {
+    listingTitle: "Mabelreign Cottage",
+  });
+  assert.ok(message.includes("Mabelreign Cottage"));
+});
+
+test("buildMessage replaces the address placeholder", () => {
+  const url = "https://sha.co.zw/claim/abc123";
+  const message = buildMessage("Address: {address}", "Tariro", url, {
+    address: "Avondale · near Joina City",
+  });
+  assert.ok(message.includes("Avondale · near Joina City"));
+});
+
+test("buildMessage appends claim link once when optional placeholders are absent", () => {
+  const url = "https://sha.co.zw/claim/abc123";
+  const message = buildMessage("Hello {landlordName}", "Tariro", url);
+  assert.equal(message.split(url).length - 1, 1);
+});
+
+test("buildMessage with all placeholders contains each expected value exactly once", () => {
+  const url = "https://sha.co.zw/claim/abc123";
+  const expiresAt = new Date("2026-06-04T12:34:56.000Z");
+  const message = buildMessage(
+    "Hello {landlordName} {phone} {expiresAt} {listingTitle} {address} {claimLink}",
+    "Tariro",
+    url,
+    {
+      phone: "+263771234567",
+      expiresAt,
+      listingTitle: "Mabelreign Cottage",
+      address: "Avondale · near Joina City",
+    },
+  );
+
+  for (const expected of [
+    "Tariro",
+    "+263771234567",
+    expiresAt.toISOString(),
+    "Mabelreign Cottage",
+    "Avondale · near Joina City",
+    url,
+  ]) {
+    assert.equal(message.split(expected).length - 1, 1);
+  }
 });
 
 test("sanitizePdfText strips characters that PDFKit may not encode", () => {
