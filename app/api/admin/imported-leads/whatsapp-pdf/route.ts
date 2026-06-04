@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import path from "node:path";
 
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
@@ -35,6 +36,7 @@ const DEFAULT_MESSAGE_TEMPLATE =
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+const PDF_FONT_PATH = path.join(process.cwd(), "app", "fonts", "NotoSans-Regular.ttf");
 
 function sanitizePdfText(value: string | null | undefined): string {
   return String(value ?? "")
@@ -80,7 +82,8 @@ function buildPdfBuffer(items: PdfItem[], batchId: string): Promise<Buffer> {
     doc.on("error", reject);
     doc.on("end", () => resolve(Buffer.concat(chunks)));
 
-    doc.font("Helvetica");
+    doc.registerFont("NotoSans", PDF_FONT_PATH);
+    doc.font("NotoSans");
     doc.fontSize(18).text("SHA Bulk WhatsApp PDF Export", { underline: true });
     doc.moveDown(0.5);
     doc.fontSize(10).fillColor("#6b7280");
