@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
+import { createRequire } from "node:module";
 import path from "node:path";
 
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
-import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
 import { NextRequest, NextResponse } from "next/server";
 
 import { resolveBaseUrl, buildLandlordClaimUrl } from "@/lib/admin/invite-helpers";
@@ -37,6 +37,8 @@ const DEFAULT_MESSAGE_TEMPLATE =
 export const runtime = "nodejs";
 export const maxDuration = 60;
 const PDF_FONT_PATH = path.join(process.cwd(), "app", "fonts", "NotoSans-Regular.ttf");
+const require = createRequire(import.meta.url);
+const PDFDocument = require("pdfkit/js/pdfkit.standalone.js") as typeof import("pdfkit");
 
 function sanitizePdfText(value: string | null | undefined): string {
   return String(value ?? "")
