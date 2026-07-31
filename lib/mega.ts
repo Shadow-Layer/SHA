@@ -1,4 +1,6 @@
 import { Storage, type MutableFile } from "megajs";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 let storageInstance: Storage | null = null;
 
@@ -68,7 +70,31 @@ function linkPromised(node: MutableFile): Promise<string> {
   });
 }
 
+async function saveLocally(buffer: Buffer, filename: string, folder: string): Promise<string> {
+  const base = process.env.LOCAL_STORAGE_PATH ?? path.join(process.cwd(), "public", "uploads");
+  const folderPath = path.join(base, folder);
+  await fs.mkdir(folderPath, { recursive: true });
+  const filePath = path.join(folderPath, filename);
+  await fs.writeFile(filePath, buffer, { mode: 0o644 });
+
+  // return a public relative path that the frontend can use
+  return `/uploads/${folder}/${filename}`;
+}
+
 export async function uploadToMega(buffer: Buffer, filename: string, folder: string): Promise<string> {
+  // If STORAGE_PROVIDER=local or MEGA credentials are missing, use local storage
+  const storageProvider = (process.env.STORAGE_PROVIDER || "mega").toLowerCase();
+
+  if (storageProvider === "local") {
+    try {
+      return await saveLocally(buffer, filename, folder);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new Error(`Local upload failed for ${folder}/${filename}: ${detail}`);
+    }
+  }
+
+  // fallback: use MEGA
   try {
     const storage = await getMegaStorage();
 
