@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env.local
+.env.*.local
+.next
+.traycer
+.traycer-central
+tests
+*.md
+.DS_Store
+.codex
