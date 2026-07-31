@@ -154,13 +154,53 @@ docker-compose ps
 docker stats
 
 # View MongoDB database
-docker-compose exec mongodb mongosh -u admin -p
+# Connect from the host VM (mongosh should be installed on the VM)
+mongosh --host 127.0.0.1 --port 27017 -u admin -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin
+
+# Alternatively use the container's shell
+docker-compose exec mongodb mongosh -u admin -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin
 
 # Database backup
-docker-compose exec mongodb mongodump --out /tmp/backup --uri="mongodb://admin:password@localhost:27017" --authenticationDatabase=admin
+# Create a logical backup using mongodump
+docker-compose exec mongodb mongodump --out /tmp/backup --uri="mongodb://admin:${MONGO_ROOT_PASSWORD}@localhost:27017" --authenticationDatabase=admin
 
 # Copy backup from container
 docker cp sha_mongodb:/tmp/backup ./backup-$(date +%s)
+
+---
+
+## Using local MongoDB (Docker)
+
+The compose file already includes a local MongoDB service. To use it:
+
+1. Ensure these variables are set in your `.env` file:
+   - MONGO_ROOT_PASSWORD (used to create the admin user)
+   - MONGO_APP_PASSWORD (password for the application user created by init-mongo.js)
+
+2. Start the stack:
+
+```bash
+# from project root
+cp .env.production .env  # if not already copied
+# edit .env and set MONGO_ROOT_PASSWORD and MONGO_APP_PASSWORD
+docker-compose build
+docker-compose up -d
+```
+
+3. The app uses the internal service name in docker-compose. By default the app will connect using:
+
+```
+mongodb://app_user:${MONGO_APP_PASSWORD:-changeme}@mongodb:27017/sha?authSource=admin
+```
+
+4. To connect from the VM for debugging or queries, use mongosh against 127.0.0.1:27017 (the compose file binds Mongo to localhost).
+
+If you prefer Mongo accessible from other hosts, change the port mapping in docker-compose.yml from `127.0.0.1:27017:27017` to `0.0.0.0:27017:27017` (less secure).
+
+Troubleshooting tips:
+- If init-mongo.js didn't create the app user, check mongodb logs: `docker-compose logs mongodb`.
+- To re-run initialization: remove the volume `docker volume rm sha_mongodb_data` then restart mongodb (data will be lost).
+
 ```
 
 ### Deployments

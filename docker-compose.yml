@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   # MongoDB for app data
   mongodb:
@@ -10,6 +8,8 @@ services:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
       MONGO_INITDB_DATABASE: sha
+      # Password used by init-mongo.js to create the application user
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:-changeme}
     volumes:
       - mongodb_data:/data/db
       - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
@@ -44,10 +44,13 @@ services:
       MONGODB_URI: mongodb://app_user:${MONGO_APP_PASSWORD:-changeme}@mongodb:27017/sha?authSource=admin
       RESEND_API_KEY: ${RESEND_API_KEY}
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@sha.co.zw}
-      MEGA_EMAIL: ${MEGA_EMAIL}
-      MEGA_PASSWORD: ${MEGA_PASSWORD}
+      # Use local storage on the VM by default
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+      LOCAL_STORAGE_PATH: ${LOCAL_STORAGE_PATH:-/app/public/uploads}
     ports:
       - "127.0.0.1:3000:3000"
+    volumes:
+      - ./data/uploads:/app/public/uploads
     networks:
       - sha_network
     depends_on:
