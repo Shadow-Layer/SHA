@@ -1,24 +1,5 @@
-# Build stage
-FROM node:20-alpine AS builder
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies (all) needed for build
-RUN npm ci
-
-# Copy source
-COPY . .
-
-# Build Next.js app
-RUN npm run build
-
-# Remove devDependencies to keep node_modules small
-RUN npm prune --production
-
-# Runtime stage
+# Runtime-only Dockerfile
+# Assumes .next, public, and node_modules are pre-built on host via: npm ci && npm run build && npm prune --production
 FROM node:20-alpine
 
 WORKDIR /app
@@ -26,11 +7,11 @@ WORKDIR /app
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
 
-# Copy from builder
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package*.json ./
+# Copy pre-built artifacts and dependencies from host
+COPY --chown=nextjs:nodejs .next ./.next
+COPY --chown=nextjs:nodejs public ./public
+COPY --chown=nextjs:nodejs node_modules ./node_modules
+COPY --chown=nextjs:nodejs package*.json ./
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001

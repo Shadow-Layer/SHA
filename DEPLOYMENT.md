@@ -63,27 +63,32 @@ nano .env
 # - NEXTAUTH_URL (https://your-domain.com)
 # - NEXT_PUBLIC_API_URL (https://your-domain.com)
 # - RESEND_API_KEY
-# - MEGA_EMAIL, MEGA_PASSWORD
 # - MONGO_ROOT_PASSWORD, MONGO_APP_PASSWORD
 
 # Create SSL directory
 mkdir -p ssl
+mkdir -p data/uploads
+
+# Build the Next.js app locally (avoids MONGODB_URI requirement during docker build)
+npm ci
+npm run build
+npm prune --production
 ```
 
 ### Initial Build and Deployment
 
 ```bash
-# Build Docker images
-docker-compose build
+# Build Docker image (uses pre-built .next and node_modules from host)
+docker compose build
 
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # Check logs
-docker-compose logs -f
+docker compose logs -f
 
 # Wait for MongoDB to initialize (~30s)
-docker-compose logs mongodb
+docker compose logs mongodb
 
 # Test app
 curl http://localhost:3000/
