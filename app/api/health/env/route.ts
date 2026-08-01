@@ -5,11 +5,11 @@ const base = [
   "NEXTAUTH_SECRET",
   "NEXTAUTH_URL",
   "SEED_SECRET",
-];
+] as const;
 
 const TRACKED_VARS = (process.env.STORAGE_PROVIDER === "mega")
   ? ([...base, "MEGA_EMAIL", "MEGA_PASSWORD"] as const)
-  : (base as const);
+  : base;
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
