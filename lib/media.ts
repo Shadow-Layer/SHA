@@ -9,10 +9,15 @@ export function isMegaShareUrl(value: string): boolean {
   }
 }
 
+export function isLocalPath(value: string): boolean {
+  return value.startsWith("/") && !value.startsWith("//");
+}
+
 export function toDisplayImageUrl(value: string): string {
-  if (!isMegaShareUrl(value)) {
-    return value;
+  // Route both MEGA.nz URLs and local paths through the media API
+  if (isMegaShareUrl(value) || isLocalPath(value)) {
+    return `/api/media?src=${encodeURIComponent(value)}`;
   }
 
-  return `/api/media?src=${encodeURIComponent(value)}`;
+  return value;
 }
