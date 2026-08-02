@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import Navbar from "@/components/Navbar";
 
@@ -8,6 +8,9 @@ export const metadata: Metadata = {
   title: "SHA - Student Housing Archive",
   description: "Student Housing Archive platform for students and landlords.",
   manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
   themeColor: "#111827",
 };
 
